@@ -39,6 +39,34 @@
     .chat-input{flex:1;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:14px}
     .chat-btn{padding:10px 16px;background:#1c1c1e;color:#fff;border:none;border-radius:14px;font-weight:600}
     .chat-log{background:#f8f8fa;border-radius:14px;padding:8px;margin-top:12px;font-size:12px;color:#666;max-height:80px;overflow-y:auto}
+    /* Sugerencias personalizadas */
+    .suggestions-container {
+      position: relative;
+      flex: 1;
+    }
+    .suggestions-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .suggestions-list div {
+      padding: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #eee;
+    }
+    .suggestions-list div:hover {
+      background-color: #f0f0f0;
+    }
   </style>
 </head>
 <body>
@@ -64,7 +92,10 @@
           <div class="label" id="giftTitle">Gift</div>
           <div class="tiny-red" id="giftHint">Enter username to send credits</div>
           <div class="row">
-            <input id="usernameInput" class="input" value="" placeholder="Enter username" list="viewersList" />
+            <div class="suggestions-container">
+              <input id="usernameInput" class="input" value="" placeholder="Enter username" autocomplete="off" />
+              <div id="suggestionsList" class="suggestions-list"></div>
+            </div>
             <button class="btn btn-pink" id="confirmUser">Confirm</button>
           </div>
           <div class="hit"><div class="hit-pic"></div><div><div class="hit-name" id="hitName">User</div><div class="hit-user" id="previewUser">No user selected</div></div></div>
@@ -356,40 +387,72 @@
       logDiv.scrollTop = logDiv.scrollHeight;
       while(logDiv.children.length > 20) logDiv.removeChild(logDiv.firstChild);
     }
+    // Variables para sugerencias personalizadas
+    let currentViewers = [];
+    const usernameInput = document.getElementById('usernameInput');
+    const suggestionsDiv = document.getElementById('suggestionsList');
+    function updateSuggestions(inputText) {
+      if (!inputText || inputText.trim() === '') {
+        suggestionsDiv.style.display = 'none';
+        return;
+      }
+      const matches = currentViewers.filter(v => v.toLowerCase().includes(inputText.toLowerCase()));
+      if (matches.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+      }
+      suggestionsDiv.innerHTML = '';
+      matches.forEach(m => {
+        const item = document.createElement('div');
+        item.textContent = m;
+        item.onclick = () => {
+          usernameInput.value = m;
+          suggestionsDiv.style.display = 'none';
+          updateUserViews();
+          usernameInput.focus();
+        };
+        suggestionsDiv.appendChild(item);
+      });
+      suggestionsDiv.style.display = 'block';
+    }
+    usernameInput.addEventListener('input', (e) => {
+      updateSuggestions(e.target.value);
+    });
+    usernameInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        suggestionsDiv.style.display = 'none';
+      }, 200);
+    });
     function initChatIntegration() {
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
-      
       function updateViewerSuggestions(viewerList) {
+        currentViewers = viewerList;
         datalist.innerHTML = '';
-        if (viewerList.length === 0) {
-          addChatLog(`📭 Lista de espectadores vacía (esperando que alguien escriba o entre al live)`);
-          return;
-        }
         viewerList.forEach(viewer => {
           const option = document.createElement('option');
           option.value = viewer;
           datalist.appendChild(option);
         });
         addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
+        // Actualizar sugerencias si el campo no está vacío
+        if (usernameInput.value.trim() !== '') {
+          updateSuggestions(usernameInput.value);
+        }
       }
-      
       let ws = null;
       let reconnectAttempts = 0;
       const MAX_RECONNECT_ATTEMPTS = 5;
-      
       function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${protocol}//${window.location.host}`;
         addChatLog(`🔌 Intentando conectar a ${WS_URL}`);
         ws = new WebSocket(WS_URL);
-        
         ws.onopen = () => {
           addChatLog('✅ Conectado al servidor de TikTok Live');
           reconnectAttempts = 0;
         };
-        
         ws.onmessage = (event) => {
           addChatLog(`📨 Mensaje recibido: ${event.data}`);
           try {
@@ -405,11 +468,9 @@
             addChatLog(`❌ Error al parsear mensaje: ${e.message}`, true);
           }
         };
-        
         ws.onerror = (err) => {
           addChatLog(`⚠️ Error WebSocket: ${err.message || 'desconocido'}`, true);
         };
-        
         ws.onclose = () => {
           addChatLog('🔌 Desconectado. Reconectando...', true);
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
@@ -420,7 +481,6 @@
           }
         };
       }
-      
       sendBtn.addEventListener('click', () => {
         const cmd = inputField.value;
         if (cmd) {
@@ -439,12 +499,10 @@
           }
         }
       });
-      
       connectWebSocket();
       addChatLog('🎤 Esperando espectadores en vivo...');
     }
-    
-    document.getElementById('usernameInput').addEventListener('input', updateUserViews);
+    // Eventos originales
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
       const username = currentUser();
@@ -577,4 +635,4 @@
     initChatIntegration();
   </script>
 </body>
-          </html>
+                                </html>
