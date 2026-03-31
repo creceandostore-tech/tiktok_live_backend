@@ -9,8 +9,6 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 8080;
-
-// Servir archivos estáticos desde la carpeta "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
@@ -83,7 +81,6 @@ wss.on('connection', (ws) => {
     ws.on('close', () => clients.delete(ws));
 });
 
-// Ruta para conectar a un live de TikTok
 app.get('/connect/:username', async (req, res) => {
     await connectToTikTok(req.params.username);
     res.json({ status: 'connected', username: req.params.username });
