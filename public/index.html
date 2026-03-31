@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Live Credits - TikTok Integration</title>
   <style>
+    /* Tu CSS original, asegúrate de que esté completo */
     :root{--bg:#f2f2f7;--card:#fff;--text:#111;--muted:#8e8e93;--line:#ececf1;--pink:#fe2c55;--pink2:#ff4f7a;--green:#19a55a;--gold1:#fff2ae;--gold2:#f4ca39;--gold3:#c99200;--shadow:0 12px 28px rgba(0,0,0,.08);--radius:22px}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} 
     html,body{margin:0;padding:0;background:#0f0f10;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text)}
@@ -39,7 +40,7 @@
     .chat-input{flex:1;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:14px}
     .chat-btn{padding:10px 16px;background:#1c1c1e;color:#fff;border:none;border-radius:14px;font-weight:600}
     .chat-log{background:#f8f8fa;border-radius:14px;padding:8px;margin-top:12px;font-size:12px;color:#666;max-height:80px;overflow-y:auto}
-    /* Sugerencias personalizadas */
+    /* Sugerencias personalizadas con avatar */
     .suggestions-container {
       position: relative;
       flex: 1;
@@ -331,22 +332,20 @@
       const hitName = document.getElementById('hitName');
       const hitAvatar = document.getElementById('hitAvatar');
       if(username && username.length > 0){
-        // Buscar en currentViewers (la lista de espectadores con todos los datos)
         const found = currentViewers.find(v => v.username === username);
         if(found){
-          // Mostrar datos reales
           previewUser.textContent = `@${username} · ${found.followers ? found.followers.toLocaleString() + ' seguidores' : cfg.hitMetaDefault}`;
           hitName.textContent = username;
           if(found.avatar){
             hitAvatar.style.backgroundImage = `url(${found.avatar})`;
             hitAvatar.style.backgroundSize = 'cover';
             hitAvatar.style.backgroundPosition = 'center';
+            console.log(`🖼️ Mostrando avatar para ${username}: ${found.avatar}`);
           } else {
             hitAvatar.style.backgroundImage = '';
             hitAvatar.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
           }
         } else {
-          // Si no está en la lista, mostrar solo el nombre
           previewUser.textContent = `@${username} · ${cfg.hitMetaDefault}`;
           hitName.textContent = username;
           hitAvatar.style.backgroundImage = '';
@@ -491,6 +490,9 @@
           datalist.appendChild(option);
         });
         addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
+        viewerList.forEach(v => {
+          if (v.avatar) console.log(`Avatar de ${v.username}: ${v.avatar}`);
+        });
         // Si el campo tiene texto, refrescar sugerencias
         if (usernameInput.value.trim() !== '') {
           updateSuggestions(usernameInput.value);
@@ -689,4 +691,4 @@
     initChatIntegration();
   </script>
 </body>
-                           </html>
+</html>
