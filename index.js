@@ -83,6 +83,7 @@ wss.on('connection', (ws) => {
     ws.on('close', () => clients.delete(ws));
 });
 
+// Ruta para conectar a un live de TikTok
 app.get('/connect/:username', async (req, res) => {
     await connectToTikTok(req.params.username);
     res.json({ status: 'connected', username: req.params.username });
