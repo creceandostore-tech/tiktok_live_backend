@@ -13,8 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-// Map de espectadores: clave = username, valor = { username, avatar, followers }
-let viewers = new Map();
+let viewers = new Map(); // key: username, value: { username, avatar, followers }
 
 function broadcastViewers() {
     const viewerList = Array.from(viewers.values());
@@ -42,7 +41,6 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
-    // Función auxiliar para extraer datos de un usuario
     function extractUserInfo(user) {
         return {
             username: user.uniqueId,
@@ -51,17 +49,15 @@ async function connectToTikTok(username) {
         };
     }
 
-    // MEMBER_JOIN (alguien entra al live)
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        const userInfo = extractUserInfo(data.user);
-        if (userInfo.username && !viewers.has(userInfo.username)) {
-            viewers.set(userInfo.username, userInfo);
-            console.log(`👥 Nuevo espectador (join): @${userInfo.username} | seguidores: ${userInfo.followers} | avatar: ${userInfo.avatar}`);
+        const info = extractUserInfo(data.user);
+        if (info.username && !viewers.has(info.username)) {
+            viewers.set(info.username, info);
+            console.log(`👥 Nuevo espectador (join): @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'}`);
             broadcastViewers();
         }
     });
 
-    // MEMBER_LEAVE (si existe)
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
         const username = data.user.uniqueId;
         if (username && viewers.has(username)) {
@@ -71,19 +67,20 @@ async function connectToTikTok(username) {
         }
     });
 
-    // CHAT (cada mensaje en el chat)
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        const userInfo = extractUserInfo(data.user);
-        if (userInfo.username && !viewers.has(userInfo.username)) {
-            viewers.set(userInfo.username, userInfo);
-            console.log(`➕ Añadido desde chat: @${userInfo.username} | seguidores: ${userInfo.followers} | avatar: ${userInfo.avatar}`);
-            broadcastViewers();
-        } else if (userInfo.username && viewers.has(userInfo.username)) {
-            // Actualizar datos (podrían cambiar followers, avatar)
-            const existing = viewers.get(userInfo.username);
-            if (existing.followers !== userInfo.followers || existing.avatar !== userInfo.avatar) {
-                viewers.set(userInfo.username, { ...existing, ...userInfo });
+        const info = extractUserInfo(data.user);
+        if (info.username) {
+            if (!viewers.has(info.username)) {
+                viewers.set(info.username, info);
+                console.log(`➕ Añadido desde chat: @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'}`);
                 broadcastViewers();
+            } else {
+                // Actualizar datos si cambian
+                const existing = viewers.get(info.username);
+                if (existing.followers !== info.followers || existing.avatar !== info.avatar) {
+                    viewers.set(info.username, { ...existing, ...info });
+                    broadcastViewers();
+                }
             }
         }
 
@@ -105,7 +102,6 @@ async function connectToTikTok(username) {
 wss.on('connection', (ws) => {
     console.log('📱 Cliente frontend conectado');
     clients.add(ws);
-    // Enviar la lista actual inmediatamente
     ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers.values()) }));
     ws.on('close', () => {
         console.log('📱 Cliente frontend desconectado');
@@ -118,7 +114,6 @@ app.get('/connect/:username', async (req, res) => {
     res.json({ status: 'connected', username: req.params.username });
 });
 
-// Endpoint para agregar espectador manual (prueba)
 app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
     if (username && !viewers.has(username)) {
