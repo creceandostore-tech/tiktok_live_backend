@@ -13,12 +13,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-let viewers = new Map(); // key: username, value: { username, avatar, followers }
+let viewers = new Set(); // solo nombres de usuario
 
 function broadcastViewers() {
-    const viewerList = Array.from(viewers.values());
+    const viewerList = Array.from(viewers);
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista de espectadores (${viewerList.length}):`, viewerList.map(v => ({ username: v.username, avatar: v.avatar ? 'si' : 'no' })));
+    console.log(`📢 Enviando lista de espectadores (${viewerList.length}):`, viewerList);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) client.send(message);
     });
@@ -41,52 +41,30 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
-    function extractUserInfo(user) {
-        // Intenta obtener la mejor calidad de avatar
-        const avatar = user.avatarMedium || user.avatarThumb || user.avatarLarge || '';
-        return {
-            username: user.uniqueId,
-            avatar: avatar,
-            followers: user.followerCount || 0
-        };
-    }
-
-    // MEMBER_JOIN
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        const info = extractUserInfo(data.user);
-        if (info.username && !viewers.has(info.username)) {
-            viewers.set(info.username, info);
-            console.log(`👥 Nuevo espectador (join): @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'} (${info.avatar})`);
+        const uniqueId = data.user.uniqueId;
+        if (uniqueId && !viewers.has(uniqueId)) {
+            viewers.add(uniqueId);
+            console.log(`👥 Nuevo espectador (join): @${uniqueId}`);
             broadcastViewers();
         }
     });
 
-    // MEMBER_LEAVE
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
-        const username = data.user.uniqueId;
-        if (username && viewers.has(username)) {
-            viewers.delete(username);
-            console.log(`🚪 Espectador salió: @${username}`);
+        const uniqueId = data.user.uniqueId;
+        if (uniqueId && viewers.has(uniqueId)) {
+            viewers.delete(uniqueId);
+            console.log(`🚪 Espectador salió: @${uniqueId}`);
             broadcastViewers();
         }
     });
 
-    // CHAT
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        const info = extractUserInfo(data.user);
-        if (info.username) {
-            if (!viewers.has(info.username)) {
-                viewers.set(info.username, info);
-                console.log(`➕ Añadido desde chat: @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'} (${info.avatar})`);
-                broadcastViewers();
-            } else {
-                // Actualizar si cambió
-                const existing = viewers.get(info.username);
-                if (existing.followers !== info.followers || existing.avatar !== info.avatar) {
-                    viewers.set(info.username, { ...existing, ...info });
-                    broadcastViewers();
-                }
-            }
+        const uniqueId = data.user.uniqueId;
+        if (uniqueId && !viewers.has(uniqueId)) {
+            viewers.add(uniqueId);
+            console.log(`➕ Añadido desde chat: @${uniqueId}`);
+            broadcastViewers();
         }
 
         const comment = data.comment.trim();
@@ -107,7 +85,7 @@ async function connectToTikTok(username) {
 wss.on('connection', (ws) => {
     console.log('📱 Cliente frontend conectado');
     clients.add(ws);
-    ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers.values()) }));
+    ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers) }));
     ws.on('close', () => {
         console.log('📱 Cliente frontend desconectado');
         clients.delete(ws);
@@ -122,11 +100,7 @@ app.get('/connect/:username', async (req, res) => {
 app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
     if (username && !viewers.has(username)) {
-        viewers.set(username, {
-            username,
-            avatar: 'https://via.placeholder.com/44?text=?',
-            followers: 0
-        });
+        viewers.add(username);
         broadcastViewers();
         res.json({ status: 'added', username });
     } else {
