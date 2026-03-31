@@ -1,0 +1,14 @@
+{
+  "name": "tiktok-live-backend",
+  "version": "1.0.0",
+  "description": "Backend para conectar TikTok Live y enviar comandos",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "tiktok-live-connector": "^1.6.0",
+    "ws": "^8.14.2"
+  }
+}
