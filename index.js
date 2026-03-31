@@ -40,6 +40,7 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
+    // Escuchar entrada de nuevos espectadores (puede no funcionar siempre)
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && !viewers.has(uniqueId)) {
@@ -58,7 +59,15 @@ async function connectToTikTok(username) {
         }
     });
 
+    // Escuchar todos los comentarios (chat) y añadir al que escribe como espectador
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
+        const uniqueId = data.user.uniqueId;
+        if (uniqueId && !viewers.has(uniqueId)) {
+            viewers.add(uniqueId);
+            console.log(`➕ Añadido desde chat: @${uniqueId}`);
+            broadcastViewers();
+        }
+
         const comment = data.comment.trim();
         if (comment.toLowerCase().startsWith('!send')) {
             broadcastCommand(comment);
@@ -81,9 +90,22 @@ wss.on('connection', (ws) => {
     ws.on('close', () => clients.delete(ws));
 });
 
+// Endpoint para conectar a un live
 app.get('/connect/:username', async (req, res) => {
     await connectToTikTok(req.params.username);
     res.json({ status: 'connected', username: req.params.username });
+});
+
+// Endpoint para agregar un espectador manualmente (para pruebas)
+app.get('/addviewer/:username', (req, res) => {
+    const username = req.params.username;
+    if (username && !viewers.has(username)) {
+        viewers.add(username);
+        broadcastViewers();
+        res.json({ status: 'added', username });
+    } else {
+        res.json({ status: 'already exists or invalid', username });
+    }
 });
 
 app.get('/status', (req, res) => {
