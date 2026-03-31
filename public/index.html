@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Live Credits - TikTok Integration</title>
   <style>
-    /* Aquí va todo tu CSS original. Cópialo de tu archivo anterior. */
     :root{--bg:#f2f2f7;--card:#fff;--text:#111;--muted:#8e8e93;--line:#ececf1;--pink:#fe2c55;--pink2:#ff4f7a;--green:#19a55a;--gold1:#fff2ae;--gold2:#f4ca39;--gold3:#c99200;--shadow:0 12px 28px rgba(0,0,0,.08);--radius:22px}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} 
     html,body{margin:0;padding:0;background:#0f0f10;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text)}
@@ -34,7 +33,6 @@
     .big-amount{text-align:center;font-size:44px;font-weight:900;margin:16px 0 8px;letter-spacing:-1px}.status-pill{margin:6px auto 0;width:max-content;display:flex;align-items:center;gap:8px;background:#edf9f2;color:#157546;border:1px solid #caedd9;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800}.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.12)}.helper{text-align:center;color:#777;font-size:13px;margin-top:8px}.center-card{margin:18px 14px 0;padding:18px 16px 16px}.back-btn{width:100%;margin-top:16px;border:none;border-radius:18px;padding:16px;color:#fff;font-size:17px;font-weight:900;background:linear-gradient(90deg,var(--pink),var(--pink2));cursor:pointer}.mini-legal{text-align:center;color:#999;font-size:10px;margin-top:14px}
     .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.key{border:none;border-radius:16px;background:#f3f3f5;padding:16px 0;font-size:28px;font-weight:700;color:#444;cursor:pointer;transition:all .08s}.key:active{transform:scale(.95);background:#e5e5ea}.total-line{margin-top:12px;text-align:right;font-size:24px;font-weight:800;color:#4b4b52}
     @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    /* Estilos extra para el panel de chat */
     .chat-panel{margin-top:20px;background:#fff;border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
     .chat-panel .title{font-size:14px;font-weight:800;margin-bottom:8px;text-align:left}
     .chat-simulate{display:flex;gap:8px;align-items:center}
@@ -45,7 +43,6 @@
 </head>
 <body>
   <div class="phone">
-    <!-- Pantalla principal -->
     <section class="screen active" id="screen1">
       <div class="topbar">
         <div class="top-side"></div>
@@ -80,7 +77,6 @@
           <div class="pay-icons" id="paymentIcons">
             <span>VISA</span><span>MC</span><span>AMEX</span><span>PayPal</span><span>Apple Pay</span>
           </div>
-          <!-- Panel de chat -->
           <div class="chat-panel">
             <div class="title">🎤 Comandos del chat</div>
             <div class="chat-simulate">
@@ -104,8 +100,6 @@
         <button class="btn btn-pink" id="goComplete" style="width:100%;margin-top:16px;padding:17px">Confirm</button>
       </div>
     </section>
-
-    <!-- Pantalla custom amount -->
     <section class="screen" id="screen2">
       <div class="topbar">
         <div class="top-side"><div class="icon" id="backToMain">←</div></div>
@@ -127,8 +121,6 @@
         </div>
       </div>
     </section>
-
-    <!-- Pantalla de confirmación -->
     <section class="screen" id="screen3">
       <div class="topbar">
         <div class="top-side"></div>
@@ -151,7 +143,6 @@
         <div class="mini-legal" id="footerText2">© Live Credits</div>
       </div>
     </section>
-
     <div class="sending-overlay" id="sendingOverlay">
       <div class="sending-card" id="sendingCard">
         <div class="sending-spinner"></div>
@@ -161,11 +152,8 @@
       </div>
     </div>
   </div>
-
   <datalist id="viewersList"></datalist>
-
   <script>
-    // CONFIGURACIÓN
     let cfg = {
       appTitle: "Live Credits",
       topTitleMain: "Credits Center",
@@ -227,26 +215,18 @@
       ],
       editableUsers: []
     };
-
-    // Funciones auxiliares (balance, etc.)
     let balance = Number(localStorage.getItem("balance") || 75889155);
-    function updateBalanceUI(){
-      document.getElementById('balanceText').textContent = balance.toLocaleString('en-US');
-    }
+    function updateBalanceUI(){ document.getElementById('balanceText').textContent = balance.toLocaleString('en-US'); }
     updateBalanceUI();
-
     let selectedCoins = 350, selectedUsd = 3.65;
     let customDigits = '900000';
     let currentScreen = 's1';
     const screens = {s1: document.getElementById('screen1'), s2: document.getElementById('screen2'), s3: document.getElementById('screen3')};
-
     function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
     function fmtUSD(n){ return 'US$' + Number(n).toFixed(2); }
     function calcFee(usd){ return +(usd * 0.06).toFixed(2); }
     function calcTotal(usd){ return +(usd + calcFee(usd)).toFixed(2); }
-    
     function currentUser(){ return (document.getElementById('usernameInput').value || '').replace(/^@/,'').trim(); }
-    
     function animateTo(next){
       if(next === currentScreen) return;
       const prev = screens[currentScreen];
@@ -266,14 +246,12 @@
       }, 360);
       currentScreen = next;
     }
-    
     function showSheet(){ document.getElementById('bottomSheet').classList.add('show'); }
     function hideSheet(){ document.getElementById('bottomSheet').classList.remove('show'); }
-    
     function renderPacks(){
       const grid = document.getElementById('packsGrid');
       grid.innerHTML = '';
-      cfg.packs.forEach((p, i) => {
+      cfg.packs.forEach((p) => {
         const btn = document.createElement('button');
         btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
         btn.dataset.coins = p.coins;
@@ -290,13 +268,11 @@
         grid.appendChild(btn);
       });
     }
-    
     function updateUserViews(){
       const username = currentUser();
       const previewUser = document.getElementById('previewUser');
       const hitName = document.getElementById('hitName');
       const hitPic = document.querySelector('.hit-pic');
-      
       if(username && username.length > 0){
         const found = (cfg.editableUsers || []).find(u => u.username.toLowerCase() === username.toLowerCase());
         if(found){
@@ -315,7 +291,6 @@
       }
       document.getElementById('sheetUser1').textContent = cfg.brandName + ' (@' + (username || 'user') + ')';
     }
-    
     function updateAmounts(){
       const fee = calcFee(selectedUsd);
       const total = calcTotal(selectedUsd);
@@ -326,24 +301,19 @@
       document.getElementById('doneFee').textContent = fmtUSD(fee);
       document.getElementById('doneReceive').textContent = fmtUSD(total);
     }
-    
     function renderCustom(){
       const n = customDigits ? Number(customDigits) : 0;
       document.getElementById('customCoinsLabel').textContent = fmtCoins(n);
       document.getElementById('customTotalLine').textContent = fmtUSD(+(n * 0.0106).toFixed(2));
     }
-    
-    // ==================== INTEGRACIÓN CON EL BACKEND (WebSocket) ====================
     function processChatCommand(rawCommand){
       const trimmed = rawCommand.trim();
       if(!trimmed.startsWith('!send')) return false;
-      
       const parts = trimmed.split(/\s+/);
       if(parts.length < 3) {
         addChatLog(`❌ Comando inválido. Usa: !send @usuario cantidad`);
         return false;
       }
-      
       let targetUser = parts[1];
       if(targetUser.startsWith('@')) targetUser = targetUser.substring(1);
       const amountStr = parts[2];
@@ -352,14 +322,11 @@
         addChatLog(`❌ Cantidad inválida: ${amountStr}`);
         return false;
       }
-      
       document.getElementById('usernameInput').value = targetUser;
       updateUserViews();
-      
       let bestPack = cfg.packs.reduce((prev, curr) => {
         return (Math.abs(curr.coins - amount) < Math.abs(prev.coins - amount) ? curr : prev);
       }, cfg.packs[0]);
-      
       const diffPercent = Math.abs(bestPack.coins - amount) / amount;
       if(diffPercent > 0.2 || amount < cfg.packs[0].coins){
         selectedCoins = amount;
@@ -372,17 +339,14 @@
         updateAmounts();
         addChatLog(`✅ Comando recibido: ${targetUser} recibirá ${bestPack.coins} créditos (paquete ${bestPack.note}).`);
       }
-      
       document.querySelectorAll('.pack').forEach(btn => {
         const packCoins = Number(btn.dataset.coins);
         if(packCoins === selectedCoins) btn.classList.add('active');
         else btn.classList.remove('active');
       });
-      
       showSheet();
       return true;
     }
-    
     function addChatLog(msg, isErr = false) {
       const logDiv = document.getElementById('chatLog');
       const p = document.createElement('div');
@@ -392,14 +356,10 @@
       logDiv.scrollTop = logDiv.scrollHeight;
       while(logDiv.children.length > 20) logDiv.removeChild(logDiv.firstChild);
     }
-    
     function initChatIntegration() {
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
-      const usernameInput = document.getElementById('usernameInput');
       const datalist = document.getElementById('viewersList');
-      
-      // Actualizar datalist con espectadores
       function updateViewerSuggestions(viewerList) {
         datalist.innerHTML = '';
         viewerList.forEach(viewer => {
@@ -409,22 +369,17 @@
         });
         addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
       }
-      
       let ws = null;
       let reconnectAttempts = 0;
       const MAX_RECONNECT_ATTEMPTS = 5;
-      
       function connectWebSocket() {
-        // Usar la misma dirección que la página, pero con protocolo ws/wss
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${protocol}//${window.location.host}`;
         ws = new WebSocket(WS_URL);
-        
         ws.onopen = () => {
           addChatLog('✅ Conectado al servidor de TikTok Live');
           reconnectAttempts = 0;
         };
-        
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -436,7 +391,6 @@
             }
           } catch (e) { console.error(e); }
         };
-        
         ws.onerror = () => addChatLog('⚠️ Error de conexión', true);
         ws.onclose = () => {
           addChatLog('🔌 Desconectado. Reconectando...', true);
@@ -448,7 +402,6 @@
           }
         };
       }
-      
       sendBtn.addEventListener('click', () => {
         const cmd = inputField.value;
         if (cmd) {
@@ -467,12 +420,9 @@
           }
         }
       });
-      
       connectWebSocket();
       addChatLog('🎤 Esperando espectadores en vivo...');
     }
-    
-    // Eventos adicionales
     document.getElementById('usernameInput').addEventListener('input', updateUserViews);
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
@@ -492,7 +442,6 @@
     document.getElementById('openCustom').addEventListener('click', () => animateTo('s2'));
     document.getElementById('backToMain').addEventListener('click', () => animateTo('s1'));
     document.getElementById('closeSheet').addEventListener('click', hideSheet);
-    
     document.querySelectorAll('.key[data-key]').forEach(key => {
       key.addEventListener('click', () => {
         const val = key.dataset.key;
@@ -515,14 +464,12 @@
       animateTo('s1');
       setTimeout(showSheet, 260);
     });
-    
     document.getElementById('goComplete').addEventListener('click', () => {
       const username = currentUser();
       if(!username){
         alert('Please enter a username first');
         return;
       }
-      
       const sendingCardEl = document.getElementById('sendingCard');
       const sendingTitleEl = document.getElementById('sendingTitle');
       const sendingTextEl = document.getElementById('sendingText');
@@ -530,29 +477,24 @@
       sendingTitleEl.textContent = cfg.sendingTitle;
       sendingTextEl.textContent = cfg.sendingText;
       document.getElementById('sendingOverlay').classList.add('show');
-      
       const now = new Date();
       const p = x => String(x).padStart(2,'0');
       document.getElementById('doneTime').textContent = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
       document.getElementById('doneTx').textContent = 'D' + Math.floor(10000000000 + Math.random() * 89999999999);
-      
       setTimeout(() => {
         sendingCardEl.classList.add('done');
         sendingTitleEl.textContent = cfg.sentTitle;
         sendingTextEl.textContent = cfg.sentText;
       }, 950);
-      
       balance -= selectedCoins;
       if(balance < 0) balance = 0;
       localStorage.setItem("balance", balance);
       updateBalanceUI();
-      
       setTimeout(() => {
         document.getElementById('sendingOverlay').classList.remove('show');
         animateTo('s3');
       }, 1550);
     });
-    
     document.getElementById('backHome').addEventListener('click', () => {
       animateTo('s1');
       selectedCoins = (cfg.packs[1] || cfg.packs[0]).coins;
@@ -561,8 +503,6 @@
       renderPacks();
       hideSheet();
     });
-    
-    // Aplicar textos y renderizar
     function applyAllTexts() {
       document.title = cfg.appTitle;
       document.getElementById('topTitle1').textContent = cfg.topTitleMain;
@@ -603,7 +543,6 @@
       document.getElementById('backHome').textContent = cfg.backButtonText;
       document.getElementById('footerText2').textContent = cfg.footerText;
       document.getElementById('avatarInitial').textContent = cfg.brandName.charAt(0);
-      
       const paymentIcons = document.getElementById('paymentIcons');
       if(paymentIcons) {
         paymentIcons.innerHTML = `<span>${cfg.paymentVisa}</span><span>${cfg.paymentMc}</span><span>${cfg.paymentAmex}</span><span>${cfg.paymentPaypal}</span><span>${cfg.paymentApplePay}</span>`;
