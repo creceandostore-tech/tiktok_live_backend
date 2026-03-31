@@ -18,6 +18,7 @@ let viewers = new Set();
 function broadcastViewers() {
     const viewerList = Array.from(viewers);
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
+    console.log(`📢 Enviando lista de espectadores a ${clients.size} clientes:`, viewerList);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) client.send(message);
     });
@@ -40,16 +41,17 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
-    // Escuchar entrada de nuevos espectadores (puede no funcionar siempre)
+    // Intentar capturar entrada de espectadores (puede no funcionar siempre)
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && !viewers.has(uniqueId)) {
             viewers.add(uniqueId);
-            console.log(`👥 Nuevo espectador: @${uniqueId}`);
+            console.log(`👥 Nuevo espectador (join): @${uniqueId}`);
             broadcastViewers();
         }
     });
 
+    // Capturar salidas (si llegan)
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && viewers.has(uniqueId)) {
@@ -59,7 +61,7 @@ async function connectToTikTok(username) {
         }
     });
 
-    // Escuchar todos los comentarios (chat) y añadir al que escribe como espectador
+    // Cada mensaje en el chat añade al que escribe como espectador
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && !viewers.has(uniqueId)) {
@@ -77,6 +79,7 @@ async function connectToTikTok(username) {
     try {
         await tiktokConnection.connect();
         console.log(`✅ Conectado al live de @${username}`);
+        // Forzar envío inicial de lista (aunque esté vacía)
         setTimeout(() => broadcastViewers(), 2000);
     } catch (err) {
         console.error(`❌ Error: ${err.message}`);
@@ -84,19 +87,22 @@ async function connectToTikTok(username) {
 }
 
 wss.on('connection', (ws) => {
-    console.log('Cliente frontend conectado');
+    console.log('📱 Cliente frontend conectado');
     clients.add(ws);
+    // Enviar la lista actual inmediatamente al nuevo cliente
     ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers) }));
-    ws.on('close', () => clients.delete(ws));
+    ws.on('close', () => {
+        console.log('📱 Cliente frontend desconectado');
+        clients.delete(ws);
+    });
 });
 
-// Endpoint para conectar a un live
 app.get('/connect/:username', async (req, res) => {
     await connectToTikTok(req.params.username);
     res.json({ status: 'connected', username: req.params.username });
 });
 
-// Endpoint para agregar un espectador manualmente (para pruebas)
+// Endpoint para agregar espectador manualmente (prueba)
 app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
     if (username && !viewers.has(username)) {
