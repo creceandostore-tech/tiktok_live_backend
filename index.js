@@ -18,7 +18,7 @@ let viewers = new Map(); // key: username, value: { username, avatar, followers 
 function broadcastViewers() {
     const viewerList = Array.from(viewers.values());
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista de espectadores (${viewerList.length}):`, viewerList.map(v => v.username));
+    console.log(`📢 Enviando lista de espectadores (${viewerList.length}):`, viewerList.map(v => ({ username: v.username, avatar: v.avatar ? 'si' : 'no' })));
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) client.send(message);
     });
@@ -42,22 +42,26 @@ async function connectToTikTok(username) {
     });
 
     function extractUserInfo(user) {
+        // Intenta obtener la mejor calidad de avatar
+        const avatar = user.avatarMedium || user.avatarThumb || user.avatarLarge || '';
         return {
             username: user.uniqueId,
-            avatar: user.avatarMedium || user.avatarThumb || '',
+            avatar: avatar,
             followers: user.followerCount || 0
         };
     }
 
+    // MEMBER_JOIN
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
         const info = extractUserInfo(data.user);
         if (info.username && !viewers.has(info.username)) {
             viewers.set(info.username, info);
-            console.log(`👥 Nuevo espectador (join): @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'}`);
+            console.log(`👥 Nuevo espectador (join): @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'} (${info.avatar})`);
             broadcastViewers();
         }
     });
 
+    // MEMBER_LEAVE
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
         const username = data.user.uniqueId;
         if (username && viewers.has(username)) {
@@ -67,15 +71,16 @@ async function connectToTikTok(username) {
         }
     });
 
+    // CHAT
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         const info = extractUserInfo(data.user);
         if (info.username) {
             if (!viewers.has(info.username)) {
                 viewers.set(info.username, info);
-                console.log(`➕ Añadido desde chat: @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'}`);
+                console.log(`➕ Añadido desde chat: @${info.username} | seguidores: ${info.followers} | avatar: ${info.avatar ? 'si' : 'no'} (${info.avatar})`);
                 broadcastViewers();
             } else {
-                // Actualizar datos si cambian
+                // Actualizar si cambió
                 const existing = viewers.get(info.username);
                 if (existing.followers !== info.followers || existing.avatar !== info.avatar) {
                     viewers.set(info.username, { ...existing, ...info });
