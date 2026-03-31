@@ -360,8 +360,13 @@
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
+      
       function updateViewerSuggestions(viewerList) {
         datalist.innerHTML = '';
+        if (viewerList.length === 0) {
+          addChatLog(`📭 Lista de espectadores vacía (esperando que alguien escriba o entre al live)`);
+          return;
+        }
         viewerList.forEach(viewer => {
           const option = document.createElement('option');
           option.value = viewer;
@@ -369,29 +374,42 @@
         });
         addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
       }
+      
       let ws = null;
       let reconnectAttempts = 0;
       const MAX_RECONNECT_ATTEMPTS = 5;
+      
       function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${protocol}//${window.location.host}`;
+        addChatLog(`🔌 Intentando conectar a ${WS_URL}`);
         ws = new WebSocket(WS_URL);
+        
         ws.onopen = () => {
           addChatLog('✅ Conectado al servidor de TikTok Live');
           reconnectAttempts = 0;
         };
+        
         ws.onmessage = (event) => {
+          addChatLog(`📨 Mensaje recibido: ${event.data}`);
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'viewers') {
+              addChatLog(`👥 Lista de espectadores recibida: ${data.data.join(', ') || 'vacía'}`);
               updateViewerSuggestions(data.data);
             } else if (data.type === 'command') {
               addChatLog(`📡 Comando: ${data.command}`);
               processChatCommand(data.command);
             }
-          } catch (e) { console.error(e); }
+          } catch (e) {
+            addChatLog(`❌ Error al parsear mensaje: ${e.message}`, true);
+          }
         };
-        ws.onerror = () => addChatLog('⚠️ Error de conexión', true);
+        
+        ws.onerror = (err) => {
+          addChatLog(`⚠️ Error WebSocket: ${err.message || 'desconocido'}`, true);
+        };
+        
         ws.onclose = () => {
           addChatLog('🔌 Desconectado. Reconectando...', true);
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
@@ -402,6 +420,7 @@
           }
         };
       }
+      
       sendBtn.addEventListener('click', () => {
         const cmd = inputField.value;
         if (cmd) {
@@ -420,9 +439,11 @@
           }
         }
       });
+      
       connectWebSocket();
       addChatLog('🎤 Esperando espectadores en vivo...');
     }
+    
     document.getElementById('usernameInput').addEventListener('input', updateUserViews);
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
@@ -556,4 +577,4 @@
     initChatIntegration();
   </script>
 </body>
-              </html>
+          </html>
