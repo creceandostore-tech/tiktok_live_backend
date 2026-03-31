@@ -22,7 +22,7 @@
     .label{margin:20px 0 8px;font-size:15px;font-weight:800}.tiny-red{font-size:12px;color:#d93d61;margin-bottom:8px}.row{display:flex;gap:10px;align-items:center}
     .input{flex:1;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;font-size:16px;outline:none;transition:all .2s}.input:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(254,44,85,.1)}
     .btn{border:none;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s}.btn-pink{color:#fff;background:linear-gradient(90deg,var(--pink),var(--pink2))}.btn-pink:active{transform:scale(.97)}
-    .hit{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px;display:flex;gap:12px;align-items:center}.hit-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#a3b9ff)}.hit-name{font-size:16px;font-weight:800}.hit-user{font-size:13px;color:#777;margin-top:4px}
+    .hit{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px;display:flex;gap:12px;align-items:center}.hit-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#a3b9ff);background-size:cover;background-position:center}.hit-name{font-size:16px;font-weight:800}.hit-user{font-size:13px;color:#777;margin-top:4px}
     .section{margin-top:18px;padding:16px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.section-title{font-size:18px;font-weight:800}.section-right{font-size:12px;color:#777}.save{color:#d93d61;font-size:12px;margin-bottom:12px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pack{border:1px solid var(--line);border-radius:18px;background:#fff;padding:14px;text-align:left;cursor:pointer;transition:.18s ease}.pack.active{border-color:#ff9fb8;background:#fff3f7;box-shadow:0 0 0 2px rgba(254,44,85,.04) inset}.pack-main{display:flex;align-items:center;gap:8px;font-weight:900;font-size:16px}.pack-price{margin-top:7px;color:#666;font-size:13px}.pack-note{margin-top:4px;color:#a1a1ab;font-size:11px}
     .custom-box{margin-top:12px;border:1px dashed #d9d9e3;border-radius:16px;background:#fff;padding:14px;cursor:pointer}.custom-box .small{font-size:12px;color:#777;margin-bottom:8px}.pay-icons{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pay-icons span{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;color:#666;font-weight:600}
@@ -39,7 +39,7 @@
     .chat-input{flex:1;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:14px}
     .chat-btn{padding:10px 16px;background:#1c1c1e;color:#fff;border:none;border-radius:14px;font-weight:600}
     .chat-log{background:#f8f8fa;border-radius:14px;padding:8px;margin-top:12px;font-size:12px;color:#666;max-height:80px;overflow-y:auto}
-    /* Sugerencias personalizadas con avatar */
+    /* Sugerencias personalizadas con avatar y seguidores */
     .suggestions-container {
       position: relative;
       flex: 1;
@@ -76,9 +76,16 @@
       object-fit: cover;
       background: #f0f0f0;
     }
+    .suggestion-info {
+      flex: 1;
+    }
     .suggestion-name {
       font-size: 14px;
       font-weight: 500;
+    }
+    .suggestion-followers {
+      font-size: 11px;
+      color: #888;
     }
   </style>
 </head>
@@ -111,7 +118,13 @@
             </div>
             <button class="btn btn-pink" id="confirmUser">Confirm</button>
           </div>
-          <div class="hit"><div class="hit-pic"></div><div><div class="hit-name" id="hitName">User</div><div class="hit-user" id="previewUser">No user selected</div></div></div>
+          <div class="hit">
+            <div class="hit-pic" id="hitAvatar"></div>
+            <div>
+              <div class="hit-name" id="hitName">User</div>
+              <div class="hit-user" id="previewUser">No user selected</div>
+            </div>
+          </div>
         </div>
         <div class="section">
           <div class="section-head"><div class="section-title" id="rechargeTitle">Recharge</div><div class="section-right" id="pricingLabel">Pricing</div></div>
@@ -316,22 +329,31 @@
       const username = currentUser();
       const previewUser = document.getElementById('previewUser');
       const hitName = document.getElementById('hitName');
-      const hitPic = document.querySelector('.hit-pic');
+      const hitAvatar = document.getElementById('hitAvatar');
       if(username && username.length > 0){
-        const found = (cfg.editableUsers || []).find(u => u.username.toLowerCase() === username.toLowerCase());
+        // Buscar en la lista de espectadores para obtener avatar y seguidores
+        const found = currentViewers.find(v => v.username === username);
         if(found){
-          previewUser.textContent = `@${username} · ${found.meta || cfg.hitMetaDefault}`;
-          hitName.textContent = found.name;
-          hitPic.style.background = found.avatar || 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          previewUser.textContent = `@${username} · ${found.followers ? found.followers.toLocaleString() + ' seguidores' : cfg.hitMetaDefault}`;
+          hitName.textContent = username;
+          if(found.avatar){
+            hitAvatar.style.backgroundImage = `url(${found.avatar})`;
+            hitAvatar.style.backgroundSize = 'cover';
+          } else {
+            hitAvatar.style.backgroundImage = '';
+            hitAvatar.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          }
         } else {
           previewUser.textContent = `@${username} · ${cfg.hitMetaDefault}`;
           hitName.textContent = username;
-          hitPic.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          hitAvatar.style.backgroundImage = '';
+          hitAvatar.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
         }
       } else {
         previewUser.textContent = 'No user selected';
         hitName.textContent = cfg.hitNameDefault;
-        hitPic.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+        hitAvatar.style.backgroundImage = '';
+        hitAvatar.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
       }
       document.getElementById('sheetUser1').textContent = cfg.brandName + ' (@' + (username || 'user') + ')';
     }
@@ -421,11 +443,18 @@
         img.src = m.avatar || 'https://via.placeholder.com/32?text=?';
         img.className = 'suggestion-avatar';
         img.onerror = () => { img.src = 'https://via.placeholder.com/32?text=?'; };
-        const nameSpan = document.createElement('span');
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'suggestion-info';
+        const nameSpan = document.createElement('div');
         nameSpan.textContent = m.username;
         nameSpan.className = 'suggestion-name';
+        const followersSpan = document.createElement('div');
+        followersSpan.className = 'suggestion-followers';
+        followersSpan.textContent = m.followers ? `${m.followers.toLocaleString()} seguidores` : '';
+        infoDiv.appendChild(nameSpan);
+        if (followersSpan.textContent) infoDiv.appendChild(followersSpan);
         item.appendChild(img);
-        item.appendChild(nameSpan);
+        item.appendChild(infoDiv);
         item.onclick = () => {
           usernameInput.value = m.username;
           suggestionsDiv.style.display = 'none';
@@ -449,9 +478,9 @@
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
       function updateViewerSuggestions(viewerList) {
-        // viewerList es array de objetos { username, avatar }
+        // viewerList es array de objetos { username, avatar, followers }
         currentViewers = viewerList;
-        // Actualizar datalist por compatibilidad (opcional)
+        // Actualizar datalist por compatibilidad
         datalist.innerHTML = '';
         viewerList.forEach(viewer => {
           const option = document.createElement('option');
@@ -657,4 +686,4 @@
     initChatIntegration();
   </script>
 </body>
-  </html>
+</html>
