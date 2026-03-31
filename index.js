@@ -13,12 +13,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-let viewers = new Set();
+// Map de espectadores: clave = username, valor = { username, avatar }
+let viewers = new Map();
 
 function broadcastViewers() {
-    const viewerList = Array.from(viewers);
+    const viewerList = Array.from(viewers.values());
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista de espectadores a ${clients.size} clientes:`, viewerList);
+    console.log(`📢 Enviando lista de espectadores (${viewerList.length}):`, viewerList.map(v => v.username));
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) client.send(message);
     });
@@ -41,17 +42,18 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
-    // Intentar capturar entrada de espectadores (puede no funcionar siempre)
+    // Capturar entrada de espectadores (evento MEMBER_JOIN)
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
         const uniqueId = data.user.uniqueId;
+        const avatar = data.user.avatarMedium || data.user.avatarThumb || '';
         if (uniqueId && !viewers.has(uniqueId)) {
-            viewers.add(uniqueId);
-            console.log(`👥 Nuevo espectador (join): @${uniqueId}`);
+            viewers.set(uniqueId, { username: uniqueId, avatar });
+            console.log(`👥 Nuevo espectador (join): @${uniqueId} avatar: ${avatar}`);
             broadcastViewers();
         }
     });
 
-    // Capturar salidas (si llegan)
+    // Capturar salidas (si existen)
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && viewers.has(uniqueId)) {
@@ -61,13 +63,21 @@ async function connectToTikTok(username) {
         }
     });
 
-    // Cada mensaje en el chat añade al que escribe como espectador
+    // Cada mensaje en el chat añade al que escribe como espectador (con foto)
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         const uniqueId = data.user.uniqueId;
+        const avatar = data.user.avatarMedium || data.user.avatarThumb || '';
         if (uniqueId && !viewers.has(uniqueId)) {
-            viewers.add(uniqueId);
-            console.log(`➕ Añadido desde chat: @${uniqueId}`);
+            viewers.set(uniqueId, { username: uniqueId, avatar });
+            console.log(`➕ Añadido desde chat: @${uniqueId} avatar: ${avatar}`);
             broadcastViewers();
+        } else if (uniqueId && viewers.has(uniqueId)) {
+            // Actualizar avatar por si cambió (opcional)
+            const existing = viewers.get(uniqueId);
+            if (existing.avatar !== avatar && avatar) {
+                existing.avatar = avatar;
+                broadcastViewers();
+            }
         }
 
         const comment = data.comment.trim();
@@ -79,7 +89,6 @@ async function connectToTikTok(username) {
     try {
         await tiktokConnection.connect();
         console.log(`✅ Conectado al live de @${username}`);
-        // Forzar envío inicial de lista (aunque esté vacía)
         setTimeout(() => broadcastViewers(), 2000);
     } catch (err) {
         console.error(`❌ Error: ${err.message}`);
@@ -90,7 +99,7 @@ wss.on('connection', (ws) => {
     console.log('📱 Cliente frontend conectado');
     clients.add(ws);
     // Enviar la lista actual inmediatamente al nuevo cliente
-    ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers) }));
+    ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers.values()) }));
     ws.on('close', () => {
         console.log('📱 Cliente frontend desconectado');
         clients.delete(ws);
@@ -106,7 +115,7 @@ app.get('/connect/:username', async (req, res) => {
 app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
     if (username && !viewers.has(username)) {
-        viewers.add(username);
+        viewers.set(username, { username, avatar: 'https://via.placeholder.com/44?text=?' });
         broadcastViewers();
         res.json({ status: 'added', username });
     } else {
