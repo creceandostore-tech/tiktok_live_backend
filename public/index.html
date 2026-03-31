@@ -39,7 +39,7 @@
     .chat-input{flex:1;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:14px}
     .chat-btn{padding:10px 16px;background:#1c1c1e;color:#fff;border:none;border-radius:14px;font-weight:600}
     .chat-log{background:#f8f8fa;border-radius:14px;padding:8px;margin-top:12px;font-size:12px;color:#666;max-height:80px;overflow-y:auto}
-    /* Sugerencias personalizadas */
+    /* Sugerencias personalizadas con avatar */
     .suggestions-container {
       position: relative;
       flex: 1;
@@ -59,13 +59,26 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .suggestions-list div {
-      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
       cursor: pointer;
-      font-size: 14px;
       border-bottom: 1px solid #eee;
     }
     .suggestions-list div:hover {
       background-color: #f0f0f0;
+    }
+    .suggestion-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #f0f0f0;
+    }
+    .suggestion-name {
+      font-size: 14px;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -396,7 +409,7 @@
         suggestionsDiv.style.display = 'none';
         return;
       }
-      const matches = currentViewers.filter(v => v.toLowerCase().includes(inputText.toLowerCase()));
+      const matches = currentViewers.filter(v => v.username.toLowerCase().includes(inputText.toLowerCase()));
       if (matches.length === 0) {
         suggestionsDiv.style.display = 'none';
         return;
@@ -404,9 +417,17 @@
       suggestionsDiv.innerHTML = '';
       matches.forEach(m => {
         const item = document.createElement('div');
-        item.textContent = m;
+        const img = document.createElement('img');
+        img.src = m.avatar || 'https://via.placeholder.com/32?text=?';
+        img.className = 'suggestion-avatar';
+        img.onerror = () => { img.src = 'https://via.placeholder.com/32?text=?'; };
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = m.username;
+        nameSpan.className = 'suggestion-name';
+        item.appendChild(img);
+        item.appendChild(nameSpan);
         item.onclick = () => {
-          usernameInput.value = m;
+          usernameInput.value = m.username;
           suggestionsDiv.style.display = 'none';
           updateUserViews();
           usernameInput.focus();
@@ -428,15 +449,17 @@
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
       function updateViewerSuggestions(viewerList) {
+        // viewerList es array de objetos { username, avatar }
         currentViewers = viewerList;
+        // Actualizar datalist por compatibilidad (opcional)
         datalist.innerHTML = '';
         viewerList.forEach(viewer => {
           const option = document.createElement('option');
-          option.value = viewer;
+          option.value = viewer.username;
           datalist.appendChild(option);
         });
         addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
-        // Actualizar sugerencias si el campo no está vacío
+        // Si el campo tiene texto, refrescar sugerencias
         if (usernameInput.value.trim() !== '') {
           updateSuggestions(usernameInput.value);
         }
@@ -458,7 +481,7 @@
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'viewers') {
-              addChatLog(`👥 Lista de espectadores recibida: ${data.data.join(', ') || 'vacía'}`);
+              addChatLog(`👥 Lista de espectadores recibida: ${data.data.map(v => v.username).join(', ') || 'vacía'}`);
               updateViewerSuggestions(data.data);
             } else if (data.type === 'command') {
               addChatLog(`📡 Comando: ${data.command}`);
@@ -502,7 +525,6 @@
       connectWebSocket();
       addChatLog('🎤 Esperando espectadores en vivo...');
     }
-    // Eventos originales
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
       const username = currentUser();
@@ -635,4 +657,4 @@
     initChatIntegration();
   </script>
 </body>
-                                </html>
+  </html>
