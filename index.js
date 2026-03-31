@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-// Map de espectadores: clave = username, valor = { username, avatar }
+// Map de espectadores: clave = username, valor = { username, avatar, followers }
 let viewers = new Map();
 
 function broadcastViewers() {
@@ -42,40 +42,47 @@ async function connectToTikTok(username) {
         processInitialData: true
     });
 
-    // Capturar entrada de espectadores (evento MEMBER_JOIN)
+    // Función auxiliar para extraer datos de un usuario
+    function extractUserInfo(user) {
+        return {
+            username: user.uniqueId,
+            avatar: user.avatarMedium || user.avatarThumb || '',
+            followers: user.followerCount || 0
+        };
+    }
+
+    // MEMBER_JOIN (alguien entra al live)
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        const uniqueId = data.user.uniqueId;
-        const avatar = data.user.avatarMedium || data.user.avatarThumb || '';
-        if (uniqueId && !viewers.has(uniqueId)) {
-            viewers.set(uniqueId, { username: uniqueId, avatar });
-            console.log(`👥 Nuevo espectador (join): @${uniqueId} avatar: ${avatar}`);
+        const userInfo = extractUserInfo(data.user);
+        if (userInfo.username && !viewers.has(userInfo.username)) {
+            viewers.set(userInfo.username, userInfo);
+            console.log(`👥 Nuevo espectador (join): @${userInfo.username} | seguidores: ${userInfo.followers} | avatar: ${userInfo.avatar}`);
             broadcastViewers();
         }
     });
 
-    // Capturar salidas (si existen)
+    // MEMBER_LEAVE (si existe)
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
-        const uniqueId = data.user.uniqueId;
-        if (uniqueId && viewers.has(uniqueId)) {
-            viewers.delete(uniqueId);
-            console.log(`🚪 Espectador salió: @${uniqueId}`);
+        const username = data.user.uniqueId;
+        if (username && viewers.has(username)) {
+            viewers.delete(username);
+            console.log(`🚪 Espectador salió: @${username}`);
             broadcastViewers();
         }
     });
 
-    // Cada mensaje en el chat añade al que escribe como espectador (con foto)
+    // CHAT (cada mensaje en el chat)
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        const uniqueId = data.user.uniqueId;
-        const avatar = data.user.avatarMedium || data.user.avatarThumb || '';
-        if (uniqueId && !viewers.has(uniqueId)) {
-            viewers.set(uniqueId, { username: uniqueId, avatar });
-            console.log(`➕ Añadido desde chat: @${uniqueId} avatar: ${avatar}`);
+        const userInfo = extractUserInfo(data.user);
+        if (userInfo.username && !viewers.has(userInfo.username)) {
+            viewers.set(userInfo.username, userInfo);
+            console.log(`➕ Añadido desde chat: @${userInfo.username} | seguidores: ${userInfo.followers} | avatar: ${userInfo.avatar}`);
             broadcastViewers();
-        } else if (uniqueId && viewers.has(uniqueId)) {
-            // Actualizar avatar por si cambió (opcional)
-            const existing = viewers.get(uniqueId);
-            if (existing.avatar !== avatar && avatar) {
-                existing.avatar = avatar;
+        } else if (userInfo.username && viewers.has(userInfo.username)) {
+            // Actualizar datos (podrían cambiar followers, avatar)
+            const existing = viewers.get(userInfo.username);
+            if (existing.followers !== userInfo.followers || existing.avatar !== userInfo.avatar) {
+                viewers.set(userInfo.username, { ...existing, ...userInfo });
                 broadcastViewers();
             }
         }
@@ -98,7 +105,7 @@ async function connectToTikTok(username) {
 wss.on('connection', (ws) => {
     console.log('📱 Cliente frontend conectado');
     clients.add(ws);
-    // Enviar la lista actual inmediatamente al nuevo cliente
+    // Enviar la lista actual inmediatamente
     ws.send(JSON.stringify({ type: 'viewers', data: Array.from(viewers.values()) }));
     ws.on('close', () => {
         console.log('📱 Cliente frontend desconectado');
@@ -111,11 +118,15 @@ app.get('/connect/:username', async (req, res) => {
     res.json({ status: 'connected', username: req.params.username });
 });
 
-// Endpoint para agregar espectador manualmente (prueba)
+// Endpoint para agregar espectador manual (prueba)
 app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
     if (username && !viewers.has(username)) {
-        viewers.set(username, { username, avatar: 'https://via.placeholder.com/44?text=?' });
+        viewers.set(username, {
+            username,
+            avatar: 'https://via.placeholder.com/44?text=?',
+            followers: 0
+        });
         broadcastViewers();
         res.json({ status: 'added', username });
     } else {
