@@ -10,132 +10,94 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname, 'public')));
 
-// TU API KEY DE TIKTOOL
 const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
 
 const clients = new Set();
 let currentUsername = null;
-let wsConnection = null;
+let tiktoolWs = null;
 let viewers = new Map();
-let reconnectInterval = null;
+let reconnectTimer = null;
 
+// Función para conectar a TikTool
 function connectToTikTool(username) {
-    if (wsConnection) {
-        try { wsConnection.close(); } catch(e) {}
+    if (tiktoolWs) {
+        try { tiktoolWs.close(); } catch(e) {}
     }
-    if (reconnectInterval) {
-        clearInterval(reconnectInterval);
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
     }
     
     currentUsername = username;
-    console.log(`🔌 Conectando a TikTool Live para @${username}...`);
+    console.log(`🔌 Conectando a @${username} con TikTool API...`);
     
-    // Usar WebSocket de TikTool con API KEY
+    // URL correcta de TikTool WebSocket
     const wsUrl = `wss://api.tik.tools/live/${username}?apiKey=${TIKTOOL_API_KEY}`;
-    wsConnection = new WebSocket(wsUrl);
+    console.log(`📡 Conectando a: ${wsUrl}`);
     
-    wsConnection.on('open', () => {
-        console.log(`✅ Conectado a TikTool Live de @${username}`);
+    tiktoolWs = new WebSocket(wsUrl);
+    
+    tiktoolWs.on('open', () => {
+        console.log(`✅ CONECTADO a @${username}`);
         broadcastToClients({ type: 'connected', username });
+        // Limpiar espectadores anteriores
+        viewers.clear();
+        broadcastViewers();
     });
     
-    wsConnection.on('message', (data) => {
+    tiktoolWs.on('message', (data) => {
         try {
-            const message = JSON.parse(data);
+            const msg = JSON.parse(data);
+            console.log(`📨 Tipo: ${msg.type || 'unknown'}`);
             
-            // Mostrar en logs el tipo de mensaje recibido
-            if (message.type) {
-                console.log(`📨 Tipo: ${message.type}`);
-            }
-            
-            // Procesar JOIN de espectador (contiene avatar real)
-            if (message.type === 'member_join' || message.type === 'viewer') {
-                const user = message.data || message;
+            // Espectador que se une
+            if (msg.type === 'member_join' && msg.data) {
+                const user = msg.data;
                 const uniqueId = user.uniqueId || user.username;
                 if (uniqueId) {
-                    // Extraer avatar real de TikTok
-                    let avatarUrl = null;
-                    if (user.avatar) avatarUrl = user.avatar;
-                    if (user.profilePicture) avatarUrl = user.profilePicture;
-                    if (user.avatarThumbnail) avatarUrl = user.avatarThumbnail;
-                    if (user.avatarMedium) avatarUrl = user.avatarMedium;
-                    
-                    // Asegurar HTTPS
-                    if (avatarUrl && avatarUrl.startsWith('http://')) {
-                        avatarUrl = avatarUrl.replace('http://', 'https://');
-                    }
-                    
+                    const avatar = user.avatar || user.profilePicture || null;
                     viewers.set(uniqueId, {
                         username: uniqueId,
-                        nickname: user.nickname || user.displayName || user.name || uniqueId,
-                        avatar: avatarUrl || null
+                        nickname: user.nickname || uniqueId,
+                        avatar: avatar
                     });
-                    console.log(`👥 ${message.type === 'member_join' ? '➕ JOIN' : '👤 VIEWER'}: @${uniqueId} - Avatar: ${avatarUrl ? '✅ REAL' : '❌ No disponible'}`);
-                    if (avatarUrl) console.log(`   📸 Avatar URL: ${avatarUrl.substring(0, 80)}...`);
+                    console.log(`➕ JOIN: @${uniqueId} - Avatar: ${avatar ? '✅' : '❌'}`);
+                    if (avatar) console.log(`   📸 ${avatar.substring(0, 60)}...`);
                     broadcastViewers();
                 }
             }
             
-            // Procesar lista completa de espectadores
-            if (message.type === 'viewer_list' && Array.isArray(message.data)) {
-                console.log(`📋 Recibida lista de ${message.data.length} espectadores`);
-                message.data.forEach(user => {
+            // Lista de espectadores
+            if (msg.type === 'viewer_list' && Array.isArray(msg.data)) {
+                console.log(`📋 Lista de ${msg.data.length} espectadores`);
+                msg.data.forEach(user => {
                     const uniqueId = user.uniqueId || user.username;
                     if (uniqueId) {
-                        let avatarUrl = user.avatar || user.profilePicture || null;
-                        if (avatarUrl && avatarUrl.startsWith('http://')) {
-                            avatarUrl = avatarUrl.replace('http://', 'https://');
-                        }
+                        const avatar = user.avatar || user.profilePicture || null;
                         viewers.set(uniqueId, {
                             username: uniqueId,
                             nickname: user.nickname || uniqueId,
-                            avatar: avatarUrl
+                            avatar: avatar
                         });
                     }
                 });
                 broadcastViewers();
             }
             
-            // Procesar mensajes de chat
-            if (message.type === 'chat') {
-                const user = message.user || (message.data && message.data.user);
-                const comment = message.comment || (message.data && message.data.comment);
-                if (user) {
-                    const uniqueId = user.uniqueId || user.username;
-                    if (uniqueId) {
-                        let avatarUrl = user.avatar || user.profilePicture || null;
-                        if (avatarUrl && avatarUrl.startsWith('http://')) {
-                            avatarUrl = avatarUrl.replace('http://', 'https://');
-                        }
-                        if (!viewers.has(uniqueId)) {
-                            viewers.set(uniqueId, {
-                                username: uniqueId,
-                                nickname: user.nickname || uniqueId,
-                                avatar: avatarUrl
-                            });
-                            broadcastViewers();
-                        }
-                    }
-                    if (comment && comment.toLowerCase().startsWith('!send')) {
-                        broadcastCommand(comment);
-                    }
+            // Chat
+            if (msg.type === 'chat' && msg.data) {
+                const user = msg.data.user;
+                const comment = msg.data.comment;
+                if (user && comment && comment.toLowerCase().startsWith('!send')) {
+                    broadcastCommand(comment);
                 }
-            }
-            
-            // Procesar gifts
-            if (message.type === 'gift') {
-                const user = message.user || (message.data && message.data.user);
                 if (user) {
                     const uniqueId = user.uniqueId || user.username;
                     if (uniqueId && !viewers.has(uniqueId)) {
-                        let avatarUrl = user.avatar || user.profilePicture || null;
-                        if (avatarUrl && avatarUrl.startsWith('http://')) {
-                            avatarUrl = avatarUrl.replace('http://', 'https://');
-                        }
+                        const avatar = user.avatar || null;
                         viewers.set(uniqueId, {
                             username: uniqueId,
                             nickname: user.nickname || uniqueId,
-                            avatar: avatarUrl
+                            avatar: avatar
                         });
                         broadcastViewers();
                     }
@@ -143,27 +105,26 @@ function connectToTikTool(username) {
             }
             
         } catch (e) {
-            console.error('❌ Error procesando mensaje:', e.message);
+            console.error('Error parsing message:', e.message);
         }
     });
     
-    wsConnection.on('error', (error) => {
-        console.error('❌ Error WebSocket:', error.message);
+    tiktoolWs.on('error', (error) => {
+        console.error(`❌ WebSocket error: ${error.message}`);
         broadcastToClients({ type: 'error', message: error.message });
     });
     
-    wsConnection.on('close', () => {
-        console.log('🔌 Desconectado de TikTool Live');
+    tiktoolWs.on('close', (code, reason) => {
+        console.log(`🔌 Desconectado. Code: ${code}, Reason: ${reason || 'unknown'}`);
         broadcastToClients({ type: 'disconnected' });
         
-        // Intentar reconectar cada 10 segundos
-        if (reconnectInterval) clearInterval(reconnectInterval);
-        reconnectInterval = setInterval(() => {
+        // Reconectar después de 5 segundos
+        reconnectTimer = setTimeout(() => {
             if (currentUsername) {
-                console.log('🔄 Intentando reconectar...');
+                console.log('🔄 Reconectando...');
                 connectToTikTool(currentUsername);
             }
-        }, 10000);
+        }, 5000);
     });
 }
 
@@ -175,7 +136,7 @@ function broadcastViewers() {
     }));
     broadcastToClients({ type: 'viewers', data: viewerList });
     const withAvatar = viewerList.filter(v => v.avatar).length;
-    console.log(`📢 Enviando ${viewerList.length} espectadores (${withAvatar} con avatar real)`);
+    console.log(`📢 Enviando ${viewerList.length} espectadores (${withAvatar} con avatar)`);
 }
 
 function broadcastCommand(command) {
@@ -191,17 +152,15 @@ function broadcastToClients(message) {
     });
 }
 
-// WebSocket para los clientes frontend
+// WebSocket para frontend
 wss.on('connection', (ws) => {
-    console.log('📱 Cliente frontend conectado');
+    console.log('📱 Frontend conectado');
     clients.add(ws);
     
-    // Enviar estado actual
-    if (currentUsername && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+    if (currentUsername && tiktoolWs && tiktoolWs.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'connected', username: currentUsername }));
     }
     
-    // Enviar lista actual de espectadores
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
@@ -210,36 +169,29 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({ type: 'viewers', data: viewerList }));
     
     ws.on('close', () => {
-        console.log('📱 Cliente frontend desconectado');
         clients.delete(ws);
     });
 });
 
-// Endpoints HTTP
+// Endpoint para conectar
 app.get('/connect/:username', (req, res) => {
     const username = req.params.username;
+    console.log(`📡 Conexión solicitada para @${username}`);
     
-    // Limpiar espectadores anteriores
     viewers.clear();
-    
-    // Conectar a TikTool Live
     connectToTikTool(username);
     
     res.json({ status: 'connecting', username, message: 'Conectando a TikTok Live...' });
 });
 
+// Endpoint para ver estado
 app.get('/status', (req, res) => {
-    const connected = wsConnection && wsConnection.readyState === WebSocket.OPEN;
-    const viewersWithAvatars = Array.from(viewers.values()).filter(v => v.avatar).length;
+    const connected = tiktoolWs && tiktoolWs.readyState === WebSocket.OPEN;
     res.json({
         connected: connected,
         username: currentUsername,
         viewers: viewers.size,
-        viewersWithAvatars: viewersWithAvatars,
-        viewersList: Array.from(viewers.values()).map(v => ({
-            username: v.username,
-            hasAvatar: !!v.avatar
-        }))
+        viewersWithAvatar: Array.from(viewers.values()).filter(v => v.avatar).length
     });
 });
 
@@ -248,7 +200,6 @@ app.get('/', (req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📡 Conéctate a un live: https://tu-app.onrender.com/connect/@username`);
-    console.log(`🔑 Usando API Key de TikTool`);
+    console.log(`🚀 Servidor en puerto ${PORT}`);
+    console.log(`🔑 API Key: ${TIKTOOL_API_KEY.substring(0, 20)}...`);
 });
