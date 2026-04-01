@@ -126,7 +126,6 @@
     @keyframes pulse-red { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
     .button-group { display: flex; gap: 10px; margin-top: 10px; }
     .button-group .btn { flex: 1; }
-    .priority-star { color: gold; margin-left: 4px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -154,7 +153,7 @@
             <div class="connection-status"><div class="live-label"><span class="live-dot"></span><span>TikTok Live</span></div><div><span id="connectionStatusBadge" class="status-badge disconnected">● Disconnected</span><span id="liveViewerCount" class="live-user-count"></span></div></div>
             <div class="row"><input type="text" id="tiktokUsername" class="input" placeholder="TikTok username (ej: elrubiuswtf)" /></div>
             <div class="button-group"><button id="connectTikTokBtn" class="btn btn-pink btn-small">Connect</button><button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none;">Disconnect</button></div>
-            <div style="font-size: 10px; color: #888; margin-top: 10px; text-align: center;">💡 Conéctate a un live real - Los que envían regalos tienen ⭐ y foto prioritaria</div>
+            <div style="font-size: 10px; color: #888; margin-top: 10px; text-align: center;">💡 Conéctate a un live real para ver espectadores con sus fotos de perfil</div>
           </div>
           <div class="chat-panel"><div class="title">🎤 Chat Commands</div><div class="chat-simulate"><input type="text" id="chatCommandInput" class="chat-input" placeholder="Ej: !send @username 350" /><button id="sendChatCommand" class="chat-btn">Send</button></div><div id="chatLog" class="chat-log">💬 Waiting for commands...</div></div>
         </div>
@@ -251,24 +250,31 @@
       const previewUserEl = document.getElementById('previewUser');
       const hitNameEl = document.getElementById('hitName');
       const hitPicEl = document.getElementById('hitPic');
+      
       if(username && username.length > 0){
         const found = currentViewersMap.get(username);
         if(found){
-          previewUserEl.textContent = `@${username} · ${found.nickname || username}${found.isPriority ? ' ⭐' : ''}`;
-          hitNameEl.textContent = (found.nickname || username) + (found.isPriority ? ' ⭐' : '');
+          previewUserEl.textContent = `@${username} · ${found.nickname || username}`;
+          hitNameEl.textContent = found.nickname || username;
+          
           if(found.avatar && found.avatar !== 'null' && found.avatar !== '' && found.avatar !== 'undefined'){
             hitPicEl.innerHTML = `<img src="${found.avatar}" alt="${username}" onerror="this.onerror=null;this.parentElement.innerHTML='';this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)'">`;
             hitPicEl.style.background = 'transparent';
-          } else { hitPicEl.innerHTML = ''; hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)'; }
+          } else {
+            hitPicEl.innerHTML = '';
+            hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          }
         } else {
           previewUserEl.textContent = `@${username} · ${cfg.hitMetaDefault}`;
           hitNameEl.textContent = username;
-          hitPicEl.innerHTML = ''; hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          hitPicEl.innerHTML = '';
+          hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
         }
       } else {
         previewUserEl.textContent = 'No user selected';
         hitNameEl.textContent = cfg.hitNameDefault;
-        hitPicEl.innerHTML = ''; hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+        hitPicEl.innerHTML = '';
+        hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
       }
       document.getElementById('sheetUser1').textContent = cfg.brandName + ' (@' + (username || 'user') + ')';
     }
@@ -327,9 +333,8 @@
       if (matches.length === 0) { suggestionsDiv.style.display = 'none'; return; }
       suggestionsDiv.innerHTML = '';
       matches.forEach(m => {
-        const viewer = currentViewersMap.get(m);
         const item = document.createElement('div');
-        item.textContent = m + (viewer?.isPriority ? ' ⭐' : '');
+        item.textContent = m;
         item.onclick = () => { usernameInput.value = m; suggestionsDiv.style.display = 'none'; updateUserViews(); usernameInput.focus(); };
         suggestionsDiv.appendChild(item);
       });
@@ -351,8 +356,8 @@
         searchBtn.textContent = originalText;
         searchBtn.disabled = false;
         const found = currentViewersMap.get(username);
-        if(found && found.avatar) addChatLog(`✅ Usuario @${username} encontrado con foto de perfil${found.isPriority ? ' ⭐ (envió regalos)' : ''}`);
-        else if(found) addChatLog(`✅ Usuario @${username} encontrado${found.isPriority ? ' ⭐ (envió regalos)' : ''}`);
+        if(found && found.avatar) addChatLog(`✅ Usuario @${username} encontrado con foto de perfil`);
+        else if(found) addChatLog(`✅ Usuario @${username} encontrado`);
         else addChatLog(`⚠️ Usuario @${username} no está en la lista de espectadores actuales`);
       }, 800);
     });
@@ -363,12 +368,12 @@
       
       function updateViewerSuggestions(viewerList) {
         currentViewersMap.clear();
-        viewerList.forEach(v => { currentViewersMap.set(v.username, { username: v.username, nickname: v.nickname, avatar: v.avatar, isPriority: v.isPriority || false }); });
+        viewerList.forEach(v => { currentViewersMap.set(v.username, { username: v.username, nickname: v.nickname, avatar: v.avatar }); });
         datalist.innerHTML = '';
         viewerList.forEach(v => { const option = document.createElement('option'); option.value = v.username; datalist.appendChild(option); });
         const viewerCountSpan = document.getElementById('liveViewerCount');
         if(viewerCountSpan) viewerCountSpan.textContent = `👥 ${viewerList.length}`;
-        addChatLog(`👥 ${viewerList.length} live viewers (⭐ = envió regalos)`);
+        addChatLog(`👥 ${viewerList.length} live viewers`);
         if (usernameInput.value.trim() !== '') { updateSuggestions(usernameInput.value); updateUserViews(); }
       }
       
