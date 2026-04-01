@@ -102,11 +102,12 @@
     }
     .coin-icon {
       display: inline-block;
-      width: 22px;
-      height: 22px;
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23fe2c55"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="12" cy="12" r="5" fill="%23ffd700"/></svg>');
+      width: 24px;
+      height: 24px;
+      background-image: url('https://static.cdn.tikTok.com/static/coin/coin_icon.png');
       background-size: contain;
       background-repeat: no-repeat;
+      background-position: center;
     }
     .row { display: flex; gap: 10px; margin-bottom: 12px; }
     .input {
@@ -189,7 +190,6 @@
       gap: 6px;
     }
     .pack-price { font-size: 13px; color: #666; margin-top: 5px; }
-    .pack-note { font-size: 10px; color: #fe2c55; margin-top: 4px; }
     .button-group { display: flex; gap: 10px; margin-top: 10px; }
     .custom-box {
       text-align: center;
@@ -212,52 +212,73 @@
       margin-bottom: 12px;
     }
 
-    /* Tarjeta como emoji pequeña */
+    /* Tarjeta Mastercard real */
     .payment-method {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #fff;
-      border-radius: 12px;
-      padding: 10px 12px;
+      background: linear-gradient(135deg, #1e2a3a, #0f1722);
+      border-radius: 16px;
+      padding: 16px;
       margin-top: 12px;
-      border: 1px solid #eee;
+      color: white;
+      position: relative;
+      overflow: hidden;
     }
-    .card-emoji {
-      font-size: 28px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+    .card-chip {
+      width: 40px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #f5e6b0);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: relative;
     }
-    .mastercard-emojis {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-    .red-circle {
+    .card-chip::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 8px;
       width: 24px;
-      height: 24px;
+      height: 16px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+    .card-number {
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .card-details {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+    .card-holder {
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .card-brand {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .mastercard-logo {
+      display: flex;
+      gap: 6px;
+    }
+    .mastercard-red {
+      width: 32px;
+      height: 32px;
       background: #eb001b;
       border-radius: 50%;
-      display: inline-block;
     }
-    .yellow-circle {
-      width: 24px;
-      height: 24px;
+    .mastercard-yellow {
+      width: 32px;
+      height: 32px;
       background: #f79e1b;
       border-radius: 50%;
-      display: inline-block;
-      margin-left: -10px;
-    }
-    .card-text {
-      font-size: 13px;
-      font-weight: 600;
-      color: #333;
-    }
-    .card-number-small {
-      font-size: 12px;
-      color: #666;
-      font-family: monospace;
+      margin-left: -16px;
     }
 
     /* Modal de confirmación */
@@ -399,11 +420,6 @@
       font-size: 12px;
       color: #666;
     }
-    .payment-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
   </style>
 </head>
 <body>
@@ -446,22 +462,25 @@
     </div>
 
     <div class="card">
-      <div class="discount-badge">Ahorra un 25% con una tarifa de servicio de terceros más baja</div>
+      <div class="discount-badge">✨ Ahorra un 25% con una tarifa de servicio de terceros más baja ✨</div>
       <div class="grid" id="packsGrid"></div>
-      <div class="custom-box" id="openCustom">Personalizar</div>
+      <div class="custom-box" id="openCustom">✨ Personalizar ✨</div>
       
-      <!-- Tarjeta como emoji pequeña -->
+      <!-- Tarjeta Mastercard real con números -->
       <div class="payment-method">
-        <div class="payment-row">
-          <div class="card-emoji">
-            <div class="mastercard-emojis">
-              <span class="red-circle"></span>
-              <span class="yellow-circle"></span>
-            </div>
-          </div>
-          <div class="card-text">Mastercard</div>
+        <div class="card-chip"></div>
+        <div class="card-number" id="cardNumberDisplay">5567 8901 2345 6789</div>
+        <div class="card-details">
+          <div class="card-holder">LIVE CREDITS</div>
+          <div>12/28</div>
         </div>
-        <div class="card-number-small">•••• 2024</div>
+        <div class="card-brand">
+          <div class="mastercard-logo">
+            <div class="mastercard-red"></div>
+            <div class="mastercard-yellow"></div>
+          </div>
+          <span style="font-size:12px; font-weight:600">Mastercard</span>
+        </div>
       </div>
 
       <div class="invite-section">
@@ -472,46 +491,49 @@
 
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-        <span>TikTok Live</span>
+        <span>📱 TikTok Live</span>
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
         <input id="tiktokUsername" class="input" placeholder="Usuario en vivo" />
       </div>
       <div class="button-group">
-        <button id="connectTikTokBtn" class="btn btn-pink btn-small">Conectar Live</button>
-        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">Desconectar</button>
+        <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
+        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">Comandos de Chat</div>
+      <div style="font-weight:600; margin-bottom:10px">💬 Comandos de Chat</div>
       <div class="row">
         <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
-        <button id="sendChatCommand" class="btn btn-pink btn-small">Enviar</button>
+        <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
       </div>
       <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
     </div>
   </div>
 </div>
 
-<!-- Modal de confirmación con tarjeta emoji -->
+<!-- Modal de confirmación con tarjeta real -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
     <p id="confirmMessage" style="margin-bottom:20px"></p>
-    <div class="payment-method" style="background:#f8f8fa; margin-bottom:16px">
-      <div class="payment-row">
-        <div class="card-emoji">
-          <div class="mastercard-emojis">
-            <span class="red-circle"></span>
-            <span class="yellow-circle"></span>
-          </div>
-        </div>
-        <div class="card-text">Mastercard</div>
+    <div class="payment-method" style="margin-bottom:16px; padding:12px">
+      <div class="card-chip" style="width:30px; height:24px; margin-bottom:12px"></div>
+      <div class="card-number" style="font-size:14px" id="modalCardNumber">•••• •••• •••• 6789</div>
+      <div class="card-details" style="margin-bottom:12px">
+        <div class="card-holder">LIVE CREDITS</div>
+        <div>12/28</div>
       </div>
-      <div class="card-number-small">•••• 2024</div>
+      <div class="card-brand">
+        <div class="mastercard-logo">
+          <div class="mastercard-red" style="width:24px; height:24px"></div>
+          <div class="mastercard-yellow" style="width:24px; height:24px"></div>
+        </div>
+        <span style="font-size:10px">Mastercard</span>
+      </div>
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" id="cancelBtn">Cancelar</button>
@@ -539,7 +561,11 @@
   let pendingTransaction = null;
   let transactionHistory = [];
 
-  // Packs exactamente como en la imagen de TikTok
+  // Números de tarjeta reales
+  const cardNumber = "5567 8901 2345 6789";
+  const cardLast4 = "6789";
+
+  // Packs exactamente como en TikTok
   const packs = [
     {coins: 30, usd: 0.32, note: ""},
     {coins: 350, usd: 3.65, note: ""},
@@ -640,8 +666,8 @@
         <span class="receipt-value">${fmtUSD(total)}</span>
       </div>
       <div class="receipt-row">
-        <span class="receipt-label">Método de pago</span>
-        <span class="receipt-value">💳 Mastercard •••• 2024</span>
+        <span class="receipt-label">Tarjeta</span>
+        <span class="receipt-value">Mastercard •••• ${cardLast4}</span>
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Fecha</span>
