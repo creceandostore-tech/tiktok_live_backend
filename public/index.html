@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Live Credits - TikTok Integration</title>
+  <title>Nija Coin - TikTok Integration</title>
   <style>
     * {
       margin: 0;
@@ -53,6 +53,12 @@
       color: white;
       font-weight: bold;
       font-size: 24px;
+      overflow: hidden;
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .profile-details {
       flex: 1;
@@ -409,16 +415,18 @@
 <body>
 <div class="container">
   <div class="content">
-    <!-- Perfil con verificado -->
+    <!-- Perfil con verificado y foto de Nija -->
     <div class="card profile-card">
       <div class="profile-info">
-        <div class="profile-avatar">LC</div>
+        <div class="profile-avatar">
+          <img src="https://i.imgur.com/1Qb3Z5M.png" alt="Nija Coin" onerror="this.src='https://via.placeholder.com/56x56?text=NC'">
+        </div>
         <div class="profile-details">
           <div class="profile-name">
-            Live Credits
+            Nija Coin
             <span class="verified-badge">✓ Verificado</span>
           </div>
-          <div class="profile-username">@livecreditsoficial</div>
+          <div class="profile-username">@ninjacoinoficial</div>
         </div>
       </div>
       <div class="balance">
@@ -533,8 +541,8 @@
   let balance = 78000000;
   let selectedCoins = 350;
   let selectedUsd = 3.65;
-  let currentViewersMap = new Map(); // Guardar espectadores
-  let priorityUsers = new Set(); // Usuarios que enviaron regalos (prioridad)
+  let currentViewersMap = new Map();
+  let priorityUsers = new Set();
   let ws = null;
   let pendingTransaction = null;
 
@@ -557,7 +565,6 @@
     return 'TXN' + Date.now() + Math.floor(Math.random() * 10000);
   }
 
-  // Limpiar usuario después de la transacción
   function clearUserInput() {
     document.getElementById('usernameInput').value = '';
     document.getElementById('hitName').textContent = 'Usuario';
@@ -566,7 +573,6 @@
     document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
-  // Ordenar espectadores: primero los que enviaron regalos (priority)
   function getSortedViewers() {
     const viewersArray = Array.from(currentViewersMap.values());
     const priorityViewers = viewersArray.filter(v => priorityUsers.has(v.username));
@@ -574,7 +580,6 @@
     return [...priorityViewers, ...normalViewers];
   }
 
-  // Actualizar el datalist con sugerencias
   function updateSuggestions() {
     const datalist = document.getElementById('viewersList');
     const sortedViewers = getSortedViewers();
@@ -739,7 +744,6 @@
     document.getElementById('confirmModal').style.display = 'none';
   }
 
-  // Cerrar comprobante y limpiar usuario
   function closeReceiptAndClear() {
     document.getElementById('receiptModal').style.display = 'none';
     clearUserInput();
@@ -868,7 +872,6 @@
     }
   };
 
-  // Botón de enviar en el hit
   const sendButton = document.createElement('button');
   sendButton.textContent = 'Enviar Gift';
   sendButton.className = 'btn btn-pink btn-small';
