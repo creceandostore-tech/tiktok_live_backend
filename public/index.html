@@ -334,6 +334,7 @@
     const usernameInput = document.getElementById('usernameInput');
     const searchBtn = document.getElementById('searchUserBtn');
     
+    // Función de búsqueda mejorada con timeout
     searchBtn.addEventListener('click', async () => {
       const username = currentUser();
       if(!username){
@@ -345,8 +346,19 @@
       searchBtn.textContent = cfg.searchingText;
       searchBtn.disabled = true;
       
+      // Timeout de 10 segundos para no quedarse colgado
+      const timeoutId = setTimeout(() => {
+        if (searchBtn.disabled) {
+          searchBtn.textContent = originalText;
+          searchBtn.disabled = false;
+          addChatLog(`❌ Búsqueda de @${username} agotó el tiempo de espera`, true);
+        }
+      }, 10000);
+      
       try {
         const response = await fetch(`/search/${username}`);
+        clearTimeout(timeoutId);
+        
         const data = await response.json();
         
         if(data.avatar) {
@@ -375,9 +387,10 @@
           addChatLog(`✅ Usuario @${username} encontrado (sin foto de perfil disponible)`);
           updateUserViews();
         } else {
-          addChatLog(`⚠️ Usuario @${username} no encontrado en el live actual`);
+          addChatLog(`⚠️ Usuario @${username} no encontrado en el live actual`, true);
         }
       } catch(err) {
+        clearTimeout(timeoutId);
         addChatLog(`❌ Error al buscar: ${err.message}`, true);
       } finally {
         searchBtn.textContent = originalText;
