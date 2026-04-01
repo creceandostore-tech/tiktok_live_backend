@@ -38,6 +38,82 @@
       padding: 16px;
       margin-bottom: 16px;
     }
+    .profile-card {
+      background: linear-gradient(135deg, #fff, #fff8f9);
+      border: 1px solid #ffe0e5;
+    }
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fe2c55, #ff4f7a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 24px;
+    }
+    .profile-details {
+      flex: 1;
+    }
+    .profile-name {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .verified-badge {
+      background: #20d5ec;
+      color: white;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .profile-username {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .balance {
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .balance-label {
+      font-size: 13px;
+      color: #666;
+    }
+    .balance-amount {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fe2c55;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .coin-icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle at 30% 30%, #ffd966, #ffaa33);
+      border-radius: 50%;
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2);
+    }
     .row { display: flex; gap: 10px; margin-bottom: 12px; }
     .input {
       flex: 1;
@@ -52,7 +128,9 @@
       border-radius: 12px;
       font-weight: 600;
       cursor: pointer;
+      transition: transform 0.1s ease;
     }
+    .btn:active { transform: scale(0.97); }
     .btn-pink { background: #fe2c55; color: white; }
     .btn-red { background: #ff3b30; color: white; }
     .btn-small { padding: 8px 16px; font-size: 14px; }
@@ -104,23 +182,67 @@
       padding: 12px;
       text-align: center;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .pack.active { border-color: #fe2c55; background: #fff0f3; }
+    .pack:hover { border-color: #fe2c55; transform: translateY(-2px); }
+    .pack.active { border-color: #fe2c55; background: #fff0f3; box-shadow: 0 2px 8px rgba(254,44,85,0.2); }
+    .pack-coins {
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .pack-price { font-size: 13px; color: #666; margin-top: 5px; }
+    .pack-note { font-size: 10px; color: #fe2c55; margin-top: 4px; }
     .button-group { display: flex; gap: 10px; margin-top: 10px; }
+    .custom-box {
+      text-align: center;
+      padding: 12px;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px dashed #fe2c55;
+      margin-top: 10px;
+      cursor: pointer;
+      color: #fe2c55;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>Live Credits</h1>
-    <p>Transferencia de créditos en vivo</p>
+    <h1>✨ Live Credits ✨</h1>
+    <p>Transferencia de créditos en vivo | TikTok Live Gifts</p>
   </div>
   <div class="content">
+    <!-- Perfil con verificado y monedas -->
+    <div class="card profile-card">
+      <div class="profile-info">
+        <div class="profile-avatar">LC</div>
+        <div class="profile-details">
+          <div class="profile-name">
+            Live Credits
+            <span class="verified-badge">✓ Verificado</span>
+          </div>
+          <div class="profile-username">@livecreditsoficial</div>
+        </div>
+      </div>
+      <div class="balance">
+        <span class="balance-label">💰 Saldo disponible</span>
+        <span class="balance-amount">
+          <span class="coin-icon"></span>
+          78,000,000
+        </span>
+      </div>
+    </div>
+
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">🎁 Gift</div>
+      <div style="font-weight:600; margin-bottom:10px">🎁 Enviar Gift</div>
       <div class="row">
         <input id="usernameInput" class="input" placeholder="Usuario de TikTok" />
-        <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
+        <button id="searchUserBtn" class="btn btn-pink">🔍 Buscar</button>
       </div>
       <div class="hit">
         <div class="hit-pic" id="hitPic"></div>
@@ -132,9 +254,10 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">💰 Recharge</div>
+      <div style="font-weight:600; margin-bottom:10px">💎 Recargar Créditos</div>
+      <div style="font-size:11px; color:#fe2c55; margin-bottom:8px">✨ Precios especiales ✨</div>
       <div class="grid" id="packsGrid"></div>
-      <div class="custom-box" id="openCustom" style="text-align:center; padding:10px; background:#fff; border-radius:12px; border:1px dashed #ccc; margin-top:10px; cursor:pointer">✨ Custom amount</div>
+      <div class="custom-box" id="openCustom">✨ Cantidad personalizada ✨</div>
     </div>
 
     <div class="card">
@@ -143,20 +266,20 @@
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
-        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo" />
+        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo (ej: elrubius)" />
       </div>
       <div class="button-group">
-        <button id="connectTikTokBtn" class="btn btn-pink btn-small">Conectar</button>
-        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">Desconectar</button>
+        <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
+        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">💬 Chat Commands</div>
+      <div style="font-weight:600; margin-bottom:10px">💬 Comandos de Chat</div>
       <div class="row">
         <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
-        <button id="sendChatCommand" class="btn btn-pink btn-small">Enviar</button>
+        <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
       </div>
       <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
     </div>
@@ -164,19 +287,19 @@
 </div>
 
 <script>
-  let balance = 75889155;
+  let balance = 78000000;
   let selectedCoins = 350;
   let customDigits = '0';
   let currentViewersMap = new Map();
   let ws = null;
 
   const packs = [
-    {coins:70, usd:0.74, note:"Popular"},
-    {coins:350, usd:3.65, note:"Starter"},
-    {coins:700, usd:7.4, note:"Best value"},
-    {coins:1400, usd:14.8, note:"Extended"},
-    {coins:3500, usd:37.0, note:"Creator"},
-    {coins:7000, usd:74.0, note:"Premium"}
+    {coins:70, usd:0.74, note:"🔥 Popular"},
+    {coins:350, usd:3.65, note:"⭐ Starter"},
+    {coins:700, usd:7.40, note:"💎 Best value"},
+    {coins:1400, usd:14.80, note:"🚀 Extended"},
+    {coins:3500, usd:37.00, note:"👑 Creator"},
+    {coins:7000, usd:74.00, note:"💪 Premium"}
   ];
 
   function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
@@ -189,12 +312,19 @@
     packs.forEach(p => {
       const btn = document.createElement('div');
       btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
-      btn.innerHTML = `<div style="font-weight:700">${fmtCoins(p.coins)}</div><div style="font-size:12px">${fmtUSD(p.usd)}</div><div style="font-size:10px; color:#888">${p.note}</div>`;
+      btn.innerHTML = `
+        <div class="pack-coins">
+          <span class="coin-icon"></span>
+          ${fmtCoins(p.coins)}
+        </div>
+        <div class="pack-price">${fmtUSD(p.usd)}</div>
+        <div class="pack-note">${p.note}</div>
+      `;
       btn.onclick = () => {
         document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedCoins = p.coins;
-        alert(`Seleccionado ${fmtCoins(p.coins)} créditos - ${fmtUSD(p.usd)}`);
+        alert(`✨ Seleccionaste ${fmtCoins(p.coins)} créditos - ${fmtUSD(p.usd)} ✨`);
       };
       grid.appendChild(btn);
     });
@@ -235,16 +365,16 @@
 
   document.getElementById('searchUserBtn').onclick = async () => {
     const username = currentUser();
-    if (!username) { alert('Ingresa un username'); return; }
+    if (!username) { alert('Ingresa un username de TikTok'); return; }
     const btn = document.getElementById('searchUserBtn');
     const original = btn.textContent;
-    btn.textContent = 'Buscando...';
+    btn.textContent = '🔍 Buscando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/search/${username}`);
       const data = await res.json();
       if (data.avatar) {
-        addChatLog(`✅ @${username} - Foto encontrada`);
+        addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
         if (currentViewersMap.has(username)) {
           currentViewersMap.get(username).avatar = data.avatar;
         } else {
@@ -252,9 +382,9 @@
         }
         updateUserViews();
       } else if (data.found) {
-        addChatLog(`✅ @${username} encontrado (sin foto)`);
+        addChatLog(`✅ @${username} encontrado en el live`);
       } else {
-        addChatLog(`⚠️ @${username} no encontrado`);
+        addChatLog(`⚠️ @${username} no está en el live actual`);
       }
     } catch(e) {
       addChatLog(`❌ Error: ${e.message}`, true);
@@ -267,15 +397,15 @@
   function initWebSocket() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${location.host}`);
-    ws.onopen = () => addChatLog('✅ Conectado al servidor');
+    ws.onopen = () => addChatLog('✅ Conectado al servidor de TikTok Live');
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         if (data.type === 'viewers') {
           currentViewersMap.clear();
           data.data.forEach(v => currentViewersMap.set(v.username, v));
-          document.getElementById('liveViewerCount').textContent = `👥 ${data.total} espectadores`;
-          addChatLog(`📡 ${data.data.length} espectadores (total: ${data.total})`);
+          document.getElementById('liveViewerCount').innerHTML = `👥 ${data.total} espectadores en vivo`;
+          addChatLog(`📡 ${data.data.length} espectadores conectados (total: ${data.total})`);
           updateUserViews();
         } else if (data.type === 'connection_status') {
           const badge = document.getElementById('connectionStatusBadge');
@@ -286,6 +416,7 @@
             badge.innerHTML = '● Conectado';
             connectBtn.style.display = 'none';
             disconnectBtn.style.display = 'block';
+            addChatLog(`🎉 Conectado al live de @${data.username}`);
           } else {
             badge.className = 'status-badge disconnected';
             badge.innerHTML = '● Desconectado';
@@ -297,45 +428,55 @@
       } catch(e) { console.error(e); }
     };
     ws.onclose = () => {
-      addChatLog('🔌 Desconectado, reconectando...', true);
+      addChatLog('🔌 Desconectado del servidor, reconectando...', true);
       setTimeout(initWebSocket, 3000);
     };
   }
 
   document.getElementById('connectTikTokBtn').onclick = async () => {
     const username = document.getElementById('tiktokUsername').value.trim();
-    if (!username) { alert('Ingresa username de TikTok'); return; }
+    if (!username) { alert('Ingresa el username de TikTok que está en vivo'); return; }
     const btn = document.getElementById('connectTikTokBtn');
-    btn.textContent = 'Conectando...';
+    btn.textContent = '🔴 Conectando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') addChatLog(`✅ Conectado a @${username}`);
-      else addChatLog(`❌ Error: ${data.error}`, true);
-    } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
-    finally { btn.textContent = 'Conectar'; btn.disabled = false; }
+      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username} 🎥`);
+      else addChatLog(`❌ Error: ${data.error} - ¿El usuario está en vivo?`, true);
+    } catch(e) { addChatLog(`❌ Error de conexión: ${e.message}`, true); }
+    finally { btn.textContent = '🔴 Conectar Live'; btn.disabled = false; }
   };
 
   document.getElementById('disconnectTikTokBtn').onclick = async () => {
     const btn = document.getElementById('disconnectTikTokBtn');
-    btn.textContent = 'Desconectando...';
+    btn.textContent = '⛔ Desconectando...';
     btn.disabled = true;
     try {
       await fetch('/disconnect');
-      addChatLog('✅ Desconectado manualmente');
+      addChatLog('✅ Desconectado manualmente del live');
     } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
-    finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
+    finally { btn.textContent = '⛔ Desconectar'; btn.disabled = false; }
   };
 
   document.getElementById('sendChatCommand').onclick = () => {
     const cmd = document.getElementById('chatCommandInput').value;
-    if (cmd) addChatLog(`🧪 Comando: ${cmd}`);
+    if (cmd) addChatLog(`🧪 Comando enviado: ${cmd}`);
+  };
+
+  document.getElementById('openCustom').onclick = () => {
+    const amount = prompt('💎 Ingresa la cantidad de créditos personalizada:', '1000');
+    if (amount && !isNaN(amount)) {
+      selectedCoins = parseInt(amount);
+      document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
+      alert(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos ✨`);
+    }
   };
 
   renderPacks();
   initWebSocket();
   updateUserViews();
+  document.getElementById('balanceText')?.remove();
 </script>
 </body>
 </html>
