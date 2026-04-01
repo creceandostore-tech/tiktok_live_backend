@@ -153,7 +153,7 @@
             <div class="connection-status"><div class="live-label"><span class="live-dot"></span><span>TikTok Live</span></div><div><span id="connectionStatusBadge" class="status-badge disconnected">● Disconnected</span><span id="liveViewerCount" class="live-user-count"></span></div></div>
             <div class="row"><input type="text" id="tiktokUsername" class="input" placeholder="TikTok username (ej: elrubiuswtf)" /></div>
             <div class="button-group"><button id="connectTikTokBtn" class="btn btn-pink btn-small">Connect</button><button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none;">Disconnect</button></div>
-            <div style="font-size: 10px; color: #888; margin-top: 10px; text-align: center;">💡 Conéctate a un live real para ver espectadores con sus fotos de perfil</div>
+            <div style="font-size: 10px; color: #888; margin-top: 10px; text-align: center;">💡 Conéctate a un live real - Los que envían regalos tienen foto de perfil real</div>
           </div>
           <div class="chat-panel"><div class="title">🎤 Chat Commands</div><div class="chat-simulate"><input type="text" id="chatCommandInput" class="chat-input" placeholder="Ej: !send @username 350" /><button id="sendChatCommand" class="chat-btn">Send</button></div><div id="chatLog" class="chat-log">💬 Waiting for commands...</div></div>
         </div>
@@ -344,22 +344,43 @@
     usernameInput.addEventListener('blur', () => { setTimeout(() => { suggestionsDiv.style.display = 'none'; }, 200); });
     
     const searchBtn = document.getElementById('searchUserBtn');
-    searchBtn.addEventListener('click', () => {
+    searchBtn.addEventListener('click', async () => {
       const username = currentUser();
-      if(!username){ alert('Please enter a username'); return; }
+      if(!username){
+        alert('Please enter a username');
+        return;
+      }
+      
       const originalText = searchBtn.textContent;
       searchBtn.textContent = cfg.searchingText;
       searchBtn.disabled = true;
       suggestionsDiv.style.display = 'none';
-      setTimeout(() => {
+      
+      try {
+        const response = await fetch(`/search/${username}`);
+        const data = await response.json();
+        
         updateUserViews();
+        
+        if(data.avatar) {
+          addChatLog(`✅ Usuario @${username} encontrado con foto de perfil real`);
+          if(currentViewersMap.has(username)) {
+            const viewer = currentViewersMap.get(username);
+            viewer.avatar = data.avatar;
+            currentViewersMap.set(username, viewer);
+            updateUserViews();
+          }
+        } else if(data.found) {
+          addChatLog(`✅ Usuario @${username} encontrado (sin foto de perfil disponible)`);
+        } else {
+          addChatLog(`⚠️ Usuario @${username} no encontrado en el live actual`);
+        }
+      } catch(err) {
+        addChatLog(`❌ Error al buscar: ${err.message}`, true);
+      } finally {
         searchBtn.textContent = originalText;
         searchBtn.disabled = false;
-        const found = currentViewersMap.get(username);
-        if(found && found.avatar) addChatLog(`✅ Usuario @${username} encontrado con foto de perfil`);
-        else if(found) addChatLog(`✅ Usuario @${username} encontrado`);
-        else addChatLog(`⚠️ Usuario @${username} no está en la lista de espectadores actuales`);
-      }, 800);
+      }
     });
     
     function initChatIntegration() {
@@ -533,4 +554,4 @@
     initChatIntegration();
   </script>
 </body>
-  </html>
+        </html>
