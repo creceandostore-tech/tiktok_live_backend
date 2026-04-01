@@ -202,6 +202,62 @@
       color: #fe2c55;
       font-weight: 600;
     }
+    .discount-badge {
+      background: #fe2c55;
+      color: white;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    /* Tarjeta Mastercard */
+    .mastercard-card {
+      background: linear-gradient(135deg, #1a1f2e, #0f1119);
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 12px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-brand {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+    .mastercard-logo {
+      display: flex;
+      gap: 8px;
+    }
+    .mastercard-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    .circle-red {
+      background: #eb001b;
+      margin-right: -12px;
+    }
+    .circle-yellow {
+      background: #f79e1b;
+      opacity: 0.8;
+    }
+    .card-number {
+      font-size: 18px;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      font-family: monospace;
+    }
+    .card-details {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .card-holder {
+      text-transform: uppercase;
+    }
 
     /* Modal de confirmación */
     .modal {
@@ -224,6 +280,8 @@
       padding: 24px;
       text-align: center;
       animation: modalIn 0.3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
     }
     @keyframes modalIn {
       from { transform: scale(0.9); opacity: 0; }
@@ -324,6 +382,22 @@
       margin-top: 12px;
       cursor: pointer;
     }
+    .invite-section {
+      background: linear-gradient(135deg, #fff5e6, #ffe8d9);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      text-align: center;
+    }
+    .invite-title {
+      font-weight: 700;
+      color: #fe2c55;
+      margin-bottom: 5px;
+    }
+    .invite-text {
+      font-size: 12px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -366,9 +440,29 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">Recargar Créditos</div>
+      <div class="discount-badge">Ahorra un 25% con una tarifa de servicio de terceros más baja</div>
       <div class="grid" id="packsGrid"></div>
-      <div class="custom-box" id="openCustom">Cantidad personalizada</div>
+      <div class="custom-box" id="openCustom">Personalizar</div>
+      
+      <!-- Tarjeta Mastercard -->
+      <div class="mastercard-card">
+        <div class="card-brand">
+          <div class="mastercard-logo">
+            <div class="mastercard-circle circle-red"></div>
+            <div class="mastercard-circle circle-yellow"></div>
+          </div>
+        </div>
+        <div class="card-number">•••• •••• •••• 2024</div>
+        <div class="card-details">
+          <div class="card-holder">LIVE CREDITS</div>
+          <div>12/28</div>
+        </div>
+      </div>
+
+      <div class="invite-section">
+        <div class="invite-title">🎁 Invita y recibe hasta $150 por amigo</div>
+        <div class="invite-text">¡Más amigos, más reembolsos!</div>
+      </div>
     </div>
 
     <div class="card">
@@ -402,9 +496,22 @@
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
     <p id="confirmMessage" style="margin-bottom:20px"></p>
+    <div class="mastercard-card" style="margin-bottom:16px; padding:12px">
+      <div class="card-brand">
+        <div class="mastercard-logo">
+          <div class="mastercard-circle circle-red"></div>
+          <div class="mastercard-circle circle-yellow"></div>
+        </div>
+      </div>
+      <div class="card-number">•••• •••• •••• 2024</div>
+      <div class="card-details">
+        <div class="card-holder">LIVE CREDITS</div>
+        <div>12/28</div>
+      </div>
+    </div>
     <div class="modal-buttons">
       <button class="btn-cancel" id="cancelBtn">Cancelar</button>
-      <button class="btn-confirm" id="confirmBtn">Confirmar</button>
+      <button class="btn-confirm" id="confirmBtn">Confirmar Pago</button>
     </div>
   </div>
 </div>
@@ -413,7 +520,7 @@
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-icon">✓</div>
-    <div class="receipt-title">¡Envío Exitoso!</div>
+    <div class="receipt-title">¡Pago Exitoso!</div>
     <div class="receipt-details" id="receiptDetails"></div>
     <button class="btn-close" id="closeReceiptBtn">Cerrar</button>
   </div>
@@ -426,20 +533,25 @@
   let currentViewersMap = new Map();
   let ws = null;
   let pendingTransaction = null;
+  let transactionHistory = [];
 
+  // Packs exactamente como en la imagen de TikTok
   const packs = [
-    {coins:70, usd:0.74, note:"Popular"},
-    {coins:350, usd:3.65, note:"Starter"},
-    {coins:700, usd:7.40, note:"Best value"},
-    {coins:1400, usd:14.80, note:"Extended"},
-    {coins:3500, usd:37.00, note:"Creator"},
-    {coins:7000, usd:74.00, note:"Premium"}
+    {coins: 30, usd: 0.32, note: ""},
+    {coins: 350, usd: 3.65, note: ""},
+    {coins: 700, usd: 7.25, note: ""},
+    {coins: 1400, usd: 14.49, note: ""},
+    {coins: 3500, usd: 36.20, note: ""}
   ];
 
   function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
   function fmtUSD(n) { return 'US$' + Number(n).toFixed(2); }
   function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
   function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
+
+  function generateTransactionId() {
+    return 'TXN' + Date.now() + Math.floor(Math.random() * 10000);
+  }
 
   function renderPacks() {
     const grid = document.getElementById('packsGrid');
@@ -453,13 +565,13 @@
           ${fmtCoins(p.coins)}
         </div>
         <div class="pack-price">${fmtUSD(p.usd)}</div>
-        <div class="pack-note">${p.note}</div>
       `;
       btn.onclick = () => {
         document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedCoins = p.coins;
         selectedUsd = p.usd;
+        addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
       };
       grid.appendChild(btn);
     });
@@ -498,10 +610,9 @@
     while(log.children.length > 20) log.removeChild(log.firstChild);
   }
 
-  function showReceipt(username, amount, coins, fee, total) {
+  function showReceipt(username, amount, coins, fee, total, transactionId, cardLast4 = '2024') {
     const receiptDetails = document.getElementById('receiptDetails');
     const now = new Date();
-    const transactionId = 'TXN' + Date.now() + Math.floor(Math.random() * 1000);
     
     receiptDetails.innerHTML = `
       <div class="receipt-row">
@@ -521,8 +632,12 @@
         <span class="receipt-value">${fmtUSD(fee)}</span>
       </div>
       <div class="receipt-row">
-        <span class="receipt-label">Total enviado</span>
+        <span class="receipt-label">Total pagado</span>
         <span class="receipt-value">${fmtUSD(total)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Tarjeta</span>
+        <span class="receipt-value">Mastercard •••• ${cardLast4}</span>
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Fecha</span>
@@ -533,7 +648,7 @@
         <span class="receipt-value">${transactionId}</span>
       </div>
       <div class="receipt-total">
-        Envío completado ✓
+        Transferencia completada ✓
       </div>
     `;
     
@@ -559,12 +674,18 @@
       amount: selectedUsd,
       coins: selectedCoins,
       fee: fee,
-      total: total
+      total: total,
+      transactionId: generateTransactionId()
     };
     
     document.getElementById('confirmMessage').innerHTML = `
-      ¿Enviar ${fmtCoins(selectedCoins)} créditos a @${username}?<br>
-      <span style="font-size:12px; color:#666">Valor: ${fmtUSD(selectedUsd)} + comisión ${fmtUSD(fee)}</span>
+      <div style="text-align:left">
+        <div style="margin-bottom:8px"><strong>Enviar a:</strong> @${username}</div>
+        <div style="margin-bottom:8px"><strong>Créditos:</strong> ${fmtCoins(selectedCoins)}</div>
+        <div style="margin-bottom:8px"><strong>Valor:</strong> ${fmtUSD(selectedUsd)}</div>
+        <div><strong>Comisión:</strong> ${fmtUSD(fee)}</div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee"><strong>Total:</strong> ${fmtUSD(total)}</div>
+      </div>
     `;
     document.getElementById('confirmModal').style.display = 'flex';
     return true;
@@ -575,15 +696,23 @@
       balance -= pendingTransaction.coins;
       updateBalanceUI();
       
+      // Guardar en historial
+      transactionHistory.push({
+        ...pendingTransaction,
+        date: new Date().toISOString()
+      });
+      
       showReceipt(
         pendingTransaction.username,
         pendingTransaction.amount,
         pendingTransaction.coins,
         pendingTransaction.fee,
-        pendingTransaction.total
+        pendingTransaction.total,
+        pendingTransaction.transactionId,
+        '2024'
       );
       
-      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} créditos a @${pendingTransaction.username}`);
+      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} créditos a @${pendingTransaction.username} - ID: ${pendingTransaction.transactionId}`);
       
       pendingTransaction = null;
     }
@@ -697,7 +826,7 @@
       selectedCoins = parseInt(amount);
       selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
       document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos`);
+      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
     }
   };
 
