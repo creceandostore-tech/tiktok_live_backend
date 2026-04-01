@@ -111,6 +111,10 @@
       border-radius: 12px;
       font-size: 14px;
     }
+    .input:focus {
+      outline: none;
+      border-color: #fe2c55;
+    }
     .btn {
       padding: 12px 20px;
       border: none;
@@ -396,6 +400,10 @@
       font-size: 12px;
       color: #666;
     }
+    datalist {
+      background: white;
+      border-radius: 12px;
+    }
   </style>
 </head>
 <body>
@@ -425,7 +433,8 @@
     <div class="card">
       <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
       <div class="row">
-        <input id="usernameInput" class="input" placeholder="Usuario de TikTok" />
+        <input id="usernameInput" class="input" list="viewersList" placeholder="Usuario de TikTok" autocomplete="off" />
+        <datalist id="viewersList"></datalist>
         <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
       <div class="hit">
@@ -525,7 +534,7 @@
   let selectedCoins = 350;
   let selectedUsd = 3.65;
   let currentViewersMap = new Map(); // Guardar espectadores
-  let priorityUsers = new Set(); // Usuarios que enviaron regalos (prioridad, sin mostrar estrella)
+  let priorityUsers = new Set(); // Usuarios que enviaron regalos (prioridad)
   let ws = null;
   let pendingTransaction = null;
 
@@ -557,7 +566,7 @@
     document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
-  // Ordenar espectadores: primero los que enviaron regalos (priority) SIN mostrar estrella
+  // Ordenar espectadores: primero los que enviaron regalos (priority)
   function getSortedViewers() {
     const viewersArray = Array.from(currentViewersMap.values());
     const priorityViewers = viewersArray.filter(v => priorityUsers.has(v.username));
@@ -565,12 +574,25 @@
     return [...priorityViewers, ...normalViewers];
   }
 
-  function renderViewerSuggestions() {
+  // Actualizar el datalist con sugerencias
+  function updateSuggestions() {
+    const datalist = document.getElementById('viewersList');
     const sortedViewers = getSortedViewers();
+    datalist.innerHTML = '';
+    sortedViewers.forEach(viewer => {
+      const option = document.createElement('option');
+      option.value = viewer.username;
+      datalist.appendChild(option);
+    });
+    
     const viewerCountSpan = document.getElementById('liveViewerCount');
     if(viewerCountSpan) {
       viewerCountSpan.innerHTML = `👥 ${sortedViewers.length} espectadores`;
     }
+  }
+
+  function renderViewerSuggestions() {
+    updateSuggestions();
     updateUserViews();
   }
 
@@ -766,6 +788,7 @@
           currentViewersMap.clear();
           data.data.forEach(v => currentViewersMap.set(v.username, v));
           renderViewerSuggestions();
+          addChatLog(`📡 ${data.data.length} espectadores conectados (total: ${data.total})`);
         } else if (data.type === 'command') {
           addChatLog(`📡 Comando recibido: ${data.command}`);
         } else if (data.type === 'connection_status') {
@@ -786,7 +809,6 @@
           }
           if (data.message) addChatLog(data.message);
         } else if (data.type === 'gift') {
-          // Cuando alguien envía un regalo, marcarlo como prioritario (sin mostrar estrella)
           const giftUser = data.username;
           if (giftUser && currentViewersMap.has(giftUser)) {
             priorityUsers.add(giftUser);
