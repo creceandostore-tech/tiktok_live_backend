@@ -3,7 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 const path = require('path');
-const axios = require('axios'); // Necesitas instalar: npm install axios
+const axios = require('axios');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,10 +17,8 @@ let tiktokConnection = null;
 let viewers = new Map();
 let currentUsername = null;
 
-// Cache de imágenes para evitar descargas repetidas
 const imageCache = new Map();
 
-// Proxy para imágenes de TikTok (evita problemas CORS)
 app.get('/proxy-image', async (req, res) => {
     const imageUrl = req.query.url;
     if (!imageUrl) {
@@ -28,14 +26,12 @@ app.get('/proxy-image', async (req, res) => {
     }
     
     try {
-        // Verificar cache
         if (imageCache.has(imageUrl)) {
             const cached = imageCache.get(imageUrl);
             res.set('Content-Type', cached.contentType);
             return res.send(cached.data);
         }
         
-        // Descargar la imagen
         const response = await axios.get(imageUrl, {
             responseType: 'arraybuffer',
             headers: {
@@ -46,7 +42,6 @@ app.get('/proxy-image', async (req, res) => {
         
         const contentType = response.headers['content-type'];
         
-        // Guardar en cache (máx 100 imágenes)
         if (imageCache.size > 100) {
             const firstKey = imageCache.keys().next().value;
             imageCache.delete(firstKey);
@@ -58,7 +53,7 @@ app.get('/proxy-image', async (req, res) => {
         });
         
         res.set('Content-Type', contentType);
-        res.set('Cache-Control', 'public, max-age=86400'); // Cache por 24 horas
+        res.set('Cache-Control', 'public, max-age=86400');
         res.send(response.data);
         
     } catch (error) {
@@ -91,9 +86,7 @@ function broadcastCommand(command) {
     });
 }
 
-// Función mejorada para obtener el mejor avatar disponible
 function getBestAvatar(userData) {
-    // Lista de posibles campos de avatar en orden de prioridad
     const avatarFields = [
         'avatarLarge',
         'avatarMedium', 
@@ -107,7 +100,6 @@ function getBestAvatar(userData) {
     for (const field of avatarFields) {
         if (userData[field] && typeof userData[field] === 'string') {
             let url = userData[field];
-            // Asegurar que la URL sea absoluta
             if (url.startsWith('//')) {
                 url = 'https:' + url;
             }
@@ -117,7 +109,6 @@ function getBestAvatar(userData) {
         }
     }
     
-    // Si no hay avatar, generar uno basado en el nombre de usuario (Gravatar-like)
     if (userData.uniqueId) {
         return `https://ui-avatars.com/api/?background=fe2c55&color=fff&bold=true&size=100&name=${encodeURIComponent(userData.nickname || userData.uniqueId)}`;
     }
@@ -163,7 +154,6 @@ async function connectToTikTok(username) {
         
         const existing = viewers.get(uniqueId);
         
-        // Siempre actualizar si encontramos un avatar que no teníamos
         if (!existing || (existing.avatar === null && avatarUrl)) {
             const viewerInfo = {
                 username: uniqueId,
@@ -176,12 +166,10 @@ async function connectToTikTok(username) {
             const action = !existing ? '➕ NUEVO' : '🔄 ACTUALIZADO';
             console.log(`${action} espectador: @${uniqueId} | ${viewerInfo.nickname} | Avatar: ${avatarUrl ? '✅' : '❌'}`);
             
-            // Broadcast inmediato
             broadcastViewers();
         }
     }
 
-    // Escuchar todos los eventos posibles que pueden dar información de usuarios
     const eventsToListen = [
         WebcastEvent.MEMBER_JOIN,
         WebcastEvent.CHAT,
@@ -200,7 +188,6 @@ async function connectToTikTok(username) {
         });
     });
 
-    // Evento específico para datos iniciales del live
     tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
         console.log(`📊 Datos iniciales: ${data.viewerCount || 0} espectadores`);
         if (data.topViewers && Array.isArray(data.topViewers)) {
@@ -210,7 +197,6 @@ async function connectToTikTok(username) {
         }
     });
 
-    // Manejar comandos de chat
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         const comment = data.comment ? data.comment.trim() : '';
         if (comment.toLowerCase().startsWith('!send')) {
@@ -219,7 +205,6 @@ async function connectToTikTok(username) {
         }
     });
 
-    // Manejar errores de conexión
     tiktokConnection.on('error', (error) => {
         console.error(`⚠️ Error: ${error.message}`);
     });
@@ -232,7 +217,6 @@ async function connectToTikTok(username) {
         await tiktokConnection.connect();
         console.log(`✅ Conectado a @${username}`);
         
-        // Esperar datos iniciales
         setTimeout(() => {
             console.log(`📊 Total: ${viewers.size} espectadores`);
             broadcastViewers();
@@ -257,7 +241,6 @@ wss.on('connection', (ws) => {
     console.log('📱 Cliente conectado');
     clients.add(ws);
     
-    // Enviar lista actual
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
@@ -291,11 +274,9 @@ app.get('/status', (req, res) => {
     });
 });
 
-// Endpoint para agregar espectador de prueba con avatar
 app.get('/addtestviewer/:username', (req, res) => {
     const username = req.params.username;
     if (!viewers.has(username)) {
-        // Usar UI Avatars para generar avatares de prueba
         const avatarUrl = `https://ui-avatars.com/api/?background=fe2c55&color=fff&bold=true&size=100&name=${encodeURIComponent(username)}`;
         viewers.set(username, {
             username: username,
