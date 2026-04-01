@@ -1,7 +1,7 @@
 {
   "name": "tiktok-live-backend",
   "version": "1.0.0",
-  "description": "Backend TikTok Live con fotos reales",
+  "description": "Backend TikTok Live",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
