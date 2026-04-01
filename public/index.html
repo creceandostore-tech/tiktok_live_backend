@@ -524,10 +524,10 @@
   let balance = 78000000;
   let selectedCoins = 350;
   let selectedUsd = 3.65;
-  let currentViewersMap = new Map();
+  let currentViewersMap = new Map(); // Guardar espectadores
+  let priorityUsers = new Set(); // Usuarios que enviaron regalos (prioridad, sin mostrar estrella)
   let ws = null;
   let pendingTransaction = null;
-  let transactionHistory = [];
 
   const cardLast4 = "6789";
 
@@ -548,28 +548,30 @@
     return 'TXN' + Date.now() + Math.floor(Math.random() * 10000);
   }
 
-  function renderPacks() {
-    const grid = document.getElementById('packsGrid');
-    grid.innerHTML = '';
-    packs.forEach(p => {
-      const btn = document.createElement('div');
-      btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
-      btn.innerHTML = `
-        <div class="pack-coins">
-          <span class="coin-emoji">🪙</span>
-          ${fmtCoins(p.coins)}
-        </div>
-        <div class="pack-price">${fmtUSD(p.usd)}</div>
-      `;
-      btn.onclick = () => {
-        document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedCoins = p.coins;
-        selectedUsd = p.usd;
-        addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
-      };
-      grid.appendChild(btn);
-    });
+  // Limpiar usuario después de la transacción
+  function clearUserInput() {
+    document.getElementById('usernameInput').value = '';
+    document.getElementById('hitName').textContent = 'Usuario';
+    document.getElementById('previewUser').textContent = 'No seleccionado';
+    document.getElementById('hitPic').innerHTML = '';
+    document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+  }
+
+  // Ordenar espectadores: primero los que enviaron regalos (priority) SIN mostrar estrella
+  function getSortedViewers() {
+    const viewersArray = Array.from(currentViewersMap.values());
+    const priorityViewers = viewersArray.filter(v => priorityUsers.has(v.username));
+    const normalViewers = viewersArray.filter(v => !priorityUsers.has(v.username));
+    return [...priorityViewers, ...normalViewers];
+  }
+
+  function renderViewerSuggestions() {
+    const sortedViewers = getSortedViewers();
+    const viewerCountSpan = document.getElementById('liveViewerCount');
+    if(viewerCountSpan) {
+      viewerCountSpan.innerHTML = `👥 ${sortedViewers.length} espectadores`;
+    }
+    updateUserViews();
   }
 
   function updateUserViews() {
@@ -583,13 +585,21 @@
       previewUser.textContent = `@${username}`;
       if (found.avatar && found.avatar !== 'null') {
         hitPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
+        hitPic.style.background = 'transparent';
       } else {
         hitPic.innerHTML = '';
+        hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
       }
-    } else {
-      hitName.textContent = username || 'Usuario';
-      previewUser.textContent = username ? `@${username}` : 'No seleccionado';
+    } else if (username) {
+      hitName.textContent = username;
+      previewUser.textContent = `@${username}`;
       hitPic.innerHTML = '';
+      hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+    } else {
+      hitName.textContent = 'Usuario';
+      previewUser.textContent = 'No seleccionado';
+      hitPic.innerHTML = '';
+      hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     }
   }
 
@@ -691,11 +701,6 @@
       balance -= pendingTransaction.coins;
       updateBalanceUI();
       
-      transactionHistory.push({
-        ...pendingTransaction,
-        date: new Date().toISOString()
-      });
-      
       showReceipt(
         pendingTransaction.username,
         pendingTransaction.amount,
@@ -705,11 +710,18 @@
         pendingTransaction.transactionId
       );
       
-      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username} - ID: ${pendingTransaction.transactionId}`);
+      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`);
       
       pendingTransaction = null;
     }
     document.getElementById('confirmModal').style.display = 'none';
+  }
+
+  // Cerrar comprobante y limpiar usuario
+  function closeReceiptAndClear() {
+    document.getElementById('receiptModal').style.display = 'none';
+    clearUserInput();
+    addChatLog('✨ Usuario limpiado. Puedes enviar otro gift ✨');
   }
 
   document.getElementById('searchUserBtn').onclick = async () => {
@@ -753,9 +765,9 @@
         if (data.type === 'viewers') {
           currentViewersMap.clear();
           data.data.forEach(v => currentViewersMap.set(v.username, v));
-          document.getElementById('liveViewerCount').innerHTML = `👥 ${data.total} espectadores en vivo`;
-          addChatLog(`📡 ${data.data.length} espectadores conectados (total: ${data.total})`);
-          updateUserViews();
+          renderViewerSuggestions();
+        } else if (data.type === 'command') {
+          addChatLog(`📡 Comando recibido: ${data.command}`);
         } else if (data.type === 'connection_status') {
           const badge = document.getElementById('connectionStatusBadge');
           const connectBtn = document.getElementById('connectTikTokBtn');
@@ -773,6 +785,14 @@
             disconnectBtn.style.display = 'none';
           }
           if (data.message) addChatLog(data.message);
+        } else if (data.type === 'gift') {
+          // Cuando alguien envía un regalo, marcarlo como prioritario (sin mostrar estrella)
+          const giftUser = data.username;
+          if (giftUser && currentViewersMap.has(giftUser)) {
+            priorityUsers.add(giftUser);
+            addChatLog(`🎁 @${giftUser} envió un regalo`);
+            renderViewerSuggestions();
+          }
         }
       } catch(e) { console.error(e); }
     };
@@ -804,6 +824,9 @@
     try {
       await fetch('/disconnect');
       addChatLog('✅ Desconectado manualmente del live');
+      priorityUsers.clear();
+      currentViewersMap.clear();
+      renderViewerSuggestions();
     } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
     finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
   };
@@ -837,9 +860,31 @@
     document.getElementById('confirmModal').style.display = 'none';
     pendingTransaction = null;
   };
-  document.getElementById('closeReceiptBtn').onclick = () => {
-    document.getElementById('receiptModal').style.display = 'none';
-  };
+  document.getElementById('closeReceiptBtn').onclick = closeReceiptAndClear;
+
+  function renderPacks() {
+    const grid = document.getElementById('packsGrid');
+    grid.innerHTML = '';
+    packs.forEach(p => {
+      const btn = document.createElement('div');
+      btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
+      btn.innerHTML = `
+        <div class="pack-coins">
+          <span class="coin-emoji">🪙</span>
+          ${fmtCoins(p.coins)}
+        </div>
+        <div class="pack-price">${fmtUSD(p.usd)}</div>
+      `;
+      btn.onclick = () => {
+        document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCoins = p.coins;
+        selectedUsd = p.usd;
+        addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
+      };
+      grid.appendChild(btn);
+    });
+  }
 
   renderPacks();
   initWebSocket();
