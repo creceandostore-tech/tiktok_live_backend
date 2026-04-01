@@ -13,18 +13,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-// Cambiamos de Set a Map para guardar más info del espectador
-let viewers = new Map(); // key: uniqueId, value: { username, nickname, avatar, avatarThumbnail, avatarMedium }
+let viewers = new Map(); // key: uniqueId, value: { username, nickname, avatar, avatarLarge, avatarMedium }
 
 function broadcastViewers() {
-    // Convertir el Map a un array de objetos para enviar al frontend
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
-        avatar: v.avatar || v.avatarThumbnail || v.avatarMedium || null
+        avatar: v.avatar || v.avatarMedium || v.avatarLarge || null
     }));
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista de espectadores a ${clients.size} clientes:`, viewerList.map(v => v.username));
+    console.log(`📢 Enviando lista de espectadores a ${clients.size} clientes`);
+    console.log(`👥 Espectadores con avatar: ${viewerList.filter(v => v.avatar).map(v => v.username).join(', ')}`);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) client.send(message);
     });
@@ -39,55 +38,88 @@ function broadcastCommand(command) {
 
 async function connectToTikTok(username) {
     if (tiktokConnection) {
-        try { await tiktokConnection.disconnect(); } catch(e) {}
+        try { await tiktokConnection.disconnect(); } catch(e) { console.log('Error al desconectar:', e.message); }
     }
     viewers.clear();
+    
+    console.log(`🔌 Conectando a @${username}...`);
+    
     tiktokConnection = new TikTokLiveConnection(username, {
         enableExtendedGiftInfo: true,
         processInitialData: true,
+        enableWebsocketUpgrade: true,
         requestPollingIntervalMs: 2000,
-        websocketConnectionTimeoutMs: 10000
+        clientLanguage: 'es',
+        sessionId: null
     });
 
-    // Helper para añadir o actualizar espectador con sus datos completos
+    function extractBestAvatar(userData) {
+        // Intentar obtener la mejor URL de avatar disponible
+        let avatarUrl = null;
+        
+        // Prioridad: avatarLarge > avatarMedium > avatarThumbnail
+        if (userData.avatarLarge && userData.avatarLarge !== '') {
+            avatarUrl = userData.avatarLarge;
+            console.log(`   📸 Avatar Large encontrado para ${userData.uniqueId}: ${avatarUrl.substring(0, 50)}...`);
+        } else if (userData.avatarMedium && userData.avatarMedium !== '') {
+            avatarUrl = userData.avatarMedium;
+            console.log(`   📸 Avatar Medium encontrado para ${userData.uniqueId}: ${avatarUrl.substring(0, 50)}...`);
+        } else if (userData.avatarThumbnail && userData.avatarThumbnail !== '') {
+            avatarUrl = userData.avatarThumbnail;
+            console.log(`   📸 Avatar Thumbnail encontrado para ${userData.uniqueId}: ${avatarUrl.substring(0, 50)}...`);
+        } else if (userData.avatar && userData.avatar !== '') {
+            avatarUrl = userData.avatar;
+            console.log(`   📸 Avatar encontrado para ${userData.uniqueId}: ${avatarUrl.substring(0, 50)}...`);
+        }
+        
+        // Si la URL es relativa, completarla
+        if (avatarUrl && avatarUrl.startsWith('/')) {
+            avatarUrl = 'https://www.tiktok.com' + avatarUrl;
+        }
+        
+        return avatarUrl;
+    }
+
     function addOrUpdateViewer(userData) {
         const uniqueId = userData.uniqueId;
         if (!uniqueId) return;
         
-        // Extraer la mejor URL de avatar disponible
-        const avatarUrl = userData.avatarThumbnail || 
-                         userData.avatarMedium || 
-                         userData.avatarLarge || 
-                         null;
+        const avatarUrl = extractBestAvatar(userData);
+        
+        const viewerInfo = {
+            username: uniqueId,
+            nickname: userData.nickname || userData.uniqueId,
+            avatar: avatarUrl,
+            avatarLarge: userData.avatarLarge || null,
+            avatarMedium: userData.avatarMedium || null
+        };
         
         const existing = viewers.get(uniqueId);
-        
-        // Si ya existe y no tiene avatar, podemos actualizar si ahora tenemos uno
-        if (existing && existing.avatar === null && avatarUrl) {
-            existing.avatar = avatarUrl;
-            existing.avatarThumbnail = userData.avatarThumbnail;
-            existing.avatarMedium = userData.avatarMedium;
-            console.log(`👥 Avatar actualizado para @${uniqueId}: ${avatarUrl}`);
+        if (!existing) {
+            viewers.set(uniqueId, viewerInfo);
+            console.log(`➕ NUEVO ESPECTADOR: @${uniqueId} (${viewerInfo.nickname})`);
+            if (avatarUrl) {
+                console.log(`   ✅ AVATAR REAL: ${avatarUrl}`);
+            } else {
+                console.log(`   ⚠️ No se pudo obtener avatar para @${uniqueId}`);
+            }
             broadcastViewers();
-        } else if (!existing) {
-            viewers.set(uniqueId, {
-                username: uniqueId,
-                nickname: userData.nickname || uniqueId,
-                avatar: avatarUrl,
-                avatarThumbnail: userData.avatarThumbnail,
-                avatarMedium: userData.avatarMedium
-            });
-            console.log(`➕ Nuevo espectador: @${uniqueId} (${userData.nickname || ''}) - Avatar: ${avatarUrl || 'no disponible'}`);
+        } else if (existing.avatar !== avatarUrl && avatarUrl) {
+            // Actualizar si tenemos una mejor URL de avatar
+            viewers.set(uniqueId, { ...existing, ...viewerInfo });
+            console.log(`🔄 Actualizando avatar para @${uniqueId}: ${avatarUrl}`);
             broadcastViewers();
         }
     }
 
     // Evento de unión al live
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
+        console.log(`👋 USUARIO SE UNIÓ: @${data.user.uniqueId}`);
+        console.log(`   Datos completos del usuario:`, JSON.stringify(data.user, null, 2));
         addOrUpdateViewer(data.user);
     });
 
-    // Evento de salida (si es que existe)
+    // Evento de salida
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && viewers.has(uniqueId)) {
@@ -97,8 +129,9 @@ async function connectToTikTok(username) {
         }
     });
 
-    // Cada mensaje en el chat también añade al que escribe como espectador
+    // Evento de chat
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
+        console.log(`💬 CHAT de @${data.user.uniqueId}: ${data.comment}`);
         addOrUpdateViewer(data.user);
 
         const comment = data.comment.trim();
@@ -107,44 +140,68 @@ async function connectToTikTok(username) {
         }
     });
 
-    // También procesar el evento de regalo para obtener información de usuarios
+    // Evento de regalos - también puede contener datos del usuario
     tiktokConnection.on(WebcastEvent.GIFT, (data) => {
-        if (data.user) {
-            addOrUpdateViewer(data.user);
+        console.log(`🎁 REGALO de @${data.user.uniqueId}: ${data.giftName} x${data.repeatCount || 1}`);
+        addOrUpdateViewer(data.user);
+    });
+
+    // Evento de datos de la sala - captura espectadores existentes
+    tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
+        console.log(`📊 DATOS DE SALA: ${data.viewerCount || 0} espectadores en total`);
+        if (data.topViewers && data.topViewers.length) {
+            console.log(`   Top viewers: ${data.topViewers.map(v => v.user?.uniqueId).join(', ')}`);
+            data.topViewers.forEach(viewer => {
+                if (viewer.user) addOrUpdateViewer(viewer.user);
+            });
         }
     });
 
     // Evento de like
     tiktokConnection.on(WebcastEvent.LIKE, (data) => {
-        if (data.user) {
-            addOrUpdateViewer(data.user);
-        }
+        console.log(`❤️ LIKE de @${data.user.uniqueId} (${data.likeCount || 1} likes)`);
+        addOrUpdateViewer(data.user);
+    });
+
+    // Evento de follow
+    tiktokConnection.on(WebcastEvent.FOLLOW, (data) => {
+        console.log(`➕ FOLLOW de @${data.user.uniqueId}`);
+        addOrUpdateViewer(data.user);
+    });
+
+    // Evento de share
+    tiktokConnection.on(WebcastEvent.SHARE, (data) => {
+        console.log(`📤 SHARE de @${data.user.uniqueId}`);
+        addOrUpdateViewer(data.user);
     });
 
     try {
         await tiktokConnection.connect();
-        console.log(`✅ Conectado al live de @${username}`);
+        console.log(`✅ CONECTADO EXITOSAMENTE al live de @${username}`);
         
-        // Esperar a que se procesen los datos iniciales
+        // Esperar un momento para recibir datos iniciales
         setTimeout(() => {
+            console.log(`📊 Estado actual: ${viewers.size} espectadores registrados`);
             broadcastViewers();
-            console.log(`📊 Total espectadores actuales: ${viewers.size}`);
         }, 3000);
+        
     } catch (err) {
-        console.error(`❌ Error: ${err.message}`);
+        console.error(`❌ ERROR al conectar: ${err.message}`);
     }
 }
 
 wss.on('connection', (ws) => {
     console.log('📱 Cliente frontend conectado');
     clients.add(ws);
-    // Enviar la lista actual inmediatamente al nuevo cliente
+    
+    // Enviar la lista actual inmediatamente
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
-        avatar: v.avatar || v.avatarThumbnail || v.avatarMedium || null
+        avatar: v.avatar || v.avatarMedium || v.avatarLarge || null
     }));
     ws.send(JSON.stringify({ type: 'viewers', data: viewerList }));
+    
     ws.on('close', () => {
         console.log('📱 Cliente frontend desconectado');
         clients.delete(ws);
@@ -156,29 +213,17 @@ app.get('/connect/:username', async (req, res) => {
     res.json({ status: 'connected', username: req.params.username });
 });
 
-// Endpoint para agregar espectador manualmente (prueba) - sin avatar
-app.get('/addviewer/:username', (req, res) => {
-    const username = req.params.username;
-    if (username && !viewers.has(username)) {
-        viewers.set(username, {
-            username: username,
-            nickname: username,
-            avatar: null,
-            avatarThumbnail: null,
-            avatarMedium: null
-        });
-        broadcastViewers();
-        res.json({ status: 'added', username });
-    } else {
-        res.json({ status: 'already exists or invalid', username });
-    }
-});
-
 app.get('/status', (req, res) => {
+    const viewerList = Array.from(viewers.values()).map(v => ({
+        username: v.username,
+        nickname: v.nickname,
+        hasAvatar: !!v.avatar
+    }));
     res.json({ 
         connected: tiktokConnection?.isConnected || false, 
         viewers: viewers.size,
-        viewersList: Array.from(viewers.keys())
+        viewersWithAvatar: viewerList.filter(v => v.hasAvatar).length,
+        viewersList: viewerList
     });
 });
 
@@ -186,4 +231,4 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-server.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
