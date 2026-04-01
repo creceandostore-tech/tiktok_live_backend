@@ -1,173 +1,6 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Live Credits - TikTok Integration</title>
-  <style>
-    :root{--bg:#f2f2f7;--card:#fff;--text:#111;--muted:#8e8e93;--line:#ececf1;--pink:#fe2c55;--pink2:#ff4f7a;--green:#19a55a;--gold1:#fff2ae;--gold2:#f4ca39;--gold3:#c99200;--shadow:0 12px 28px rgba(0,0,0,.08);--radius:22px}
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} 
-    html,body{margin:0;padding:0;background:#0f0f10;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text)}
-    .phone{width:100%;max-width:390px;min-height:100vh;margin:0 auto;background:var(--bg);position:relative;overflow:hidden;border-radius:28px}
-    .screen{display:none;min-height:100vh;position:absolute;inset:0;z-index:1;background:var(--bg);opacity:0;transform:translateX(22px);transition:transform .34s cubic-bezier(.22,.8,.22,1), opacity .28s ease;pointer-events:none}
-    .screen.active{display:block;opacity:1;transform:translateX(0);pointer-events:auto;z-index:3}
-    .screen.leaving-left{display:block;opacity:.85;transform:translateX(-26px);z-index:2;pointer-events:none}
-    .screen.leaving-right{display:block;opacity:.85;transform:translateX(26px);z-index:2;pointer-events:none}
-    .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(242,242,247,.96);backdrop-filter:blur(12px);position:sticky;top:0;z-index:10}
-    .top-side{display:flex;align-items:center;gap:8px;min-width:72px}.icon{width:32px;height:32px;border-radius:999px;display:grid;place-items:center;font-size:18px;color:#222;cursor:pointer;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}.title{flex:1;text-align:center;font-size:18px;font-weight:800;letter-spacing:-.3px}
-    .content{padding:8px 14px 290px}.card,.section,.center-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)} .card{padding:16px}
-    .profile{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.profile-left{display:flex;gap:12px;align-items:center}.avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1a1c24,#5a5f6e);display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px}
-    .name{font-size:22px;font-weight:800;line-height:1.1;letter-spacing:-.5px}.subline{font-size:13px;color:#666;margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.secure{font-size:11px;color:var(--green);font-weight:800;background:#e9f7ef;padding:4px 8px;border-radius:20px}
-    .coin{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 35%, var(--gold1) 0%, var(--gold2) 42%, var(--gold3) 100%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);display:inline-block;flex:none}
-    .label{margin:20px 0 8px;font-size:15px;font-weight:800}.tiny-red{font-size:12px;color:#d93d61;margin-bottom:8px}.row{display:flex;gap:10px;align-items:center}
-    .input{flex:1;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;font-size:16px;outline:none;transition:all .2s}.input:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(254,44,85,.1)}
-    .btn{border:none;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s}.btn-pink{color:#fff;background:linear-gradient(90deg,var(--pink),var(--pink2))}.btn-pink:active{transform:scale(.97)}
-    .hit{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px;display:flex;gap:12px;align-items:center}.hit-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#a3b9ff);background-size:cover;background-position:center}.hit-name{font-size:16px;font-weight:800}.hit-user{font-size:13px;color:#777;margin-top:4px}
-    .section{margin-top:18px;padding:16px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.section-title{font-size:18px;font-weight:800}.section-right{font-size:12px;color:#777}.save{color:#d93d61;font-size:12px;margin-bottom:12px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pack{border:1px solid var(--line);border-radius:18px;background:#fff;padding:14px;text-align:left;cursor:pointer;transition:.18s ease}.pack.active{border-color:#ff9fb8;background:#fff3f7;box-shadow:0 0 0 2px rgba(254,44,85,.04) inset}.pack-main{display:flex;align-items:center;gap:8px;font-weight:900;font-size:16px}.pack-price{margin-top:7px;color:#666;font-size:13px}.pack-note{margin-top:4px;color:#a1a1ab;font-size:11px}
-    .custom-box{margin-top:12px;border:1px dashed #d9d9e3;border-radius:16px;background:#fff;padding:14px;cursor:pointer}.custom-box .small{font-size:12px;color:#777;margin-bottom:8px}.pay-icons{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pay-icons span{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;color:#666;font-weight:600}
-    .bottom-sheet{position:fixed;left:50%;transform:translateX(-50%) translateY(110%);bottom:0;width:100%;max-width:390px;min-height:320px;background:#fff;border-top:1px solid #ececef;border-radius:28px 28px 0 0;box-shadow:0 -16px 38px rgba(0,0,0,.16);padding:12px 16px calc(20px + env(safe-area-inset-bottom));z-index:12;opacity:0;transition:transform .34s cubic-bezier(.22,.8,.22,1), opacity .24s ease;pointer-events:none}
-    .bottom-sheet.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}.handle{width:42px;height:5px;border-radius:999px;background:#ddd;margin:0 auto 12px}.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.sheet-title{font-size:24px;font-weight:900;letter-spacing:-.5px}.sheet-close{font-size:28px;color:#888;line-height:1;cursor:pointer}
-    .rows{border:1px solid var(--line);border-radius:18px;background:#fff;padding:6px 14px}.r{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px dashed #ececf1;font-size:14px}.r:last-child{border-bottom:none}.k{color:#777}.v{font-weight:800;text-align:right}
-    .sending-overlay{position:fixed;inset:0;background:rgba(242,242,247,.96);backdrop-filter:blur(8px);z-index:40;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}.sending-overlay.show{opacity:1;pointer-events:auto}.sending-card{width:88%;max-width:300px;background:#fff;border-radius:32px;box-shadow:0 20px 50px rgba(0,0,0,.15);padding:28px 20px;text-align:center}.sending-spinner{width:54px;height:54px;margin:0 auto 16px;border-radius:50%;border:4px solid #ffd2de;border-top-color:#fe2c55;animation:spin 1s linear infinite}.sending-check{width:60px;height:60px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(180deg,#28c76f,#14a44d);color:#fff;display:none;align-items:center;justify-content:center;font-size:32px;font-weight:900}.sending-card.done .sending-spinner{display:none}.sending-card.done .sending-check{display:flex}.sending-title{font-size:22px;font-weight:900;margin-bottom:8px}.sending-text{color:#666;font-size:14px}
-    .big-amount{text-align:center;font-size:44px;font-weight:900;margin:16px 0 8px;letter-spacing:-1px}.status-pill{margin:6px auto 0;width:max-content;display:flex;align-items:center;gap:8px;background:#edf9f2;color:#157546;border:1px solid #caedd9;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800}.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.12)}.helper{text-align:center;color:#777;font-size:13px;margin-top:8px}.center-card{margin:18px 14px 0;padding:18px 16px 16px}.back-btn{width:100%;margin-top:16px;border:none;border-radius:18px;padding:16px;color:#fff;font-size:17px;font-weight:900;background:linear-gradient(90deg,var(--pink),var(--pink2));cursor:pointer}.mini-legal{text-align:center;color:#999;font-size:10px;margin-top:14px}
-    .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.key{border:none;border-radius:16px;background:#f3f3f5;padding:16px 0;font-size:28px;font-weight:700;color:#444;cursor:pointer;transition:all .08s}.key:active{transform:scale(.95);background:#e5e5ea}.total-line{margin-top:12px;text-align:right;font-size:24px;font-weight:800;color:#4b4b52}
-    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    .chat-panel{margin-top:20px;background:#fff;border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
-    .chat-panel .title{font-size:14px;font-weight:800;margin-bottom:8px;text-align:left}
-    .chat-simulate{display:flex;gap:8px;align-items:center}
-    .chat-input{flex:1;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:14px}
-    .chat-btn{padding:10px 16px;background:#1c1c1e;color:#fff;border:none;border-radius:14px;font-weight:600}
-    .chat-log{background:#f8f8fa;border-radius:14px;padding:8px;margin-top:12px;font-size:12px;color:#666;max-height:80px;overflow-y:auto}
-    .suggestions-container{position:relative;flex:1}
-    .suggestions-list{position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #ddd;border-radius:14px;max-height:200px;overflow-y:auto;z-index:1000;display:none;box-shadow:0 4px 8px rgba(0,0,0,0.1)}
-    .suggestions-list div{padding:10px;cursor:pointer;font-size:14px;border-bottom:1px solid #eee}
-    .suggestions-list div:hover{background-color:#f0f0f0}
-    .hit-pic img{width:100%;height:100%;border-radius:50%;object-fit:cover}
-  </style>
-</head>
-<body>
-  <div class="phone">
-    <section class="screen active" id="screen1">
-      <div class="topbar">
-        <div class="top-side"></div>
-        <div class="title" id="topTitle1">Credits Center</div>
-        <div class="top-side"></div>
-      </div>
-      <div class="content">
-        <div class="card">
-          <div class="profile">
-            <div class="profile-left">
-              <div class="avatar" id="avatarInitial">C</div>
-              <div>
-                <div class="name" id="brandName">Live Credits</div>
-                <div class="subline"><span class="coin"></span><span id="balanceText">75,889,155</span><span>|</span><span id="userTag">DEMO24X</span></div>
-              </div>
-            </div>
-            <div class="secure" id="secureText">● Secure Payment</div>
-          </div>
-          <div class="label" id="giftTitle">Gift</div>
-          <div class="tiny-red" id="giftHint">Enter username to send credits</div>
-          <div class="row">
-            <div class="suggestions-container">
-              <input id="usernameInput" class="input" value="" placeholder="Enter username" autocomplete="off" />
-              <div id="suggestionsList" class="suggestions-list"></div>
-            </div>
-            <button class="btn btn-pink" id="confirmUser">Confirm</button>
-          </div>
-          <div class="hit">
-            <div class="hit-pic" id="hitPic"></div>
-            <div>
-              <div class="hit-name" id="hitName">User</div>
-              <div class="hit-user" id="previewUser">No user selected</div>
-            </div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-head"><div class="section-title" id="rechargeTitle">Recharge</div><div class="section-right" id="pricingLabel">Pricing</div></div>
-          <div class="save" id="rechargeHint">Lower third-party service fees, save up to 25%</div>
-          <div class="grid" id="packsGrid"></div>
-          <div class="custom-box" id="openCustom"><div class="small" id="customAmountLabel">✨ Custom amount</div><div class="small" style="margin:0;color:#fe2c55;" id="tapToEnterLabel">Tap to enter amount</div></div>
-          <div class="pay-icons" id="paymentIcons">
-            <span>VISA</span><span>MC</span><span>AMEX</span><span>PayPal</span><span>Apple Pay</span>
-          </div>
-          <div class="chat-panel">
-            <div class="title">🎤 Comandos del chat</div>
-            <div class="chat-simulate">
-              <input type="text" id="chatCommandInput" class="chat-input" placeholder="Ej: !send @usuario 350" />
-              <button id="sendChatCommand" class="chat-btn">Enviar</button>
-            </div>
-            <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
-          </div>
-        </div>
-      </div>
-      <div class="bottom-sheet" id="bottomSheet">
-        <div class="handle"></div>
-        <div class="sheet-head"><div class="sheet-title" id="sheetTitle">Transfer summary</div><div class="sheet-close" id="closeSheet">×</div></div>
-        <div class="rows">
-          <div class="r"><div class="k" id="sheetTransferToLabel">Transfer to</div><div class="v" id="sheetUser1">Live Credits (user)</div></div>
-          <div class="r"><div class="k" id="sheetTransferAmountLabel">Transfer amount</div><div class="v" id="sheetAmount1">350 credits</div></div>
-          <div class="r"><div class="k" id="sheetServiceFeeLabel">Service fee</div><div class="v" id="sheetFee1">US$0.22</div></div>
-          <div class="r"><div class="k" id="sheetEstimatedLabel">Estimated amount you receive</div><div class="v" id="sheetTotal1">US$3.87</div></div>
-          <div class="r"><div class="k" id="sheetStatusLabel">Status</div><div class="v" id="sheetStatusValue">Processed</div></div>
-        </div>
-        <button class="btn btn-pink" id="goComplete" style="width:100%;margin-top:16px;padding:17px">Confirm</button>
-      </div>
-    </section>
-    <section class="screen" id="screen2">
-      <div class="topbar">
-        <div class="top-side"><div class="icon" id="backToMain">←</div></div>
-        <div class="title" id="topTitle2">Custom Amount</div>
-        <div class="top-side"></div>
-      </div>
-      <div class="content" style="padding-bottom:40px">
-        <div class="card">
-          <div class="label" id="customEnterLabel" style="margin-top:0">Enter custom credits</div>
-          <div class="row" style="align-items:center;font-size:18px;font-weight:800;justify-content:center;gap:8px"><span class="coin"></span><span id="customCoinsLabel">900,000</span></div>
-          <div class="numpad">
-            <button class="key" data-key="1">1</button><button class="key" data-key="2">2</button><button class="key" data-key="3">3</button>
-            <button class="key" data-key="4">4</button><button class="key" data-key="5">5</button><button class="key" data-key="6">6</button>
-            <button class="key" data-key="7">7</button><button class="key" data-key="8">8</button><button class="key" data-key="9">9</button>
-            <button class="key" data-key="000">000</button><button class="key" data-key="0">0</button><button class="key" id="backspace">⌫</button>
-          </div>
-          <div class="total-line" id="customTotalLine">US$9,540.00</div>
-          <button class="btn btn-pink" id="applyCustom" style="width:100%;margin-top:14px">Apply amount</button>
-        </div>
-      </div>
-    </section>
-    <section class="screen" id="screen3">
-      <div class="topbar">
-        <div class="top-side"></div>
-        <div class="title" id="topTitle3">Transfer Summary</div>
-        <div class="top-side"></div>
-      </div>
-      <div class="center-card">
-        <div class="status-pill"><span class="dot"></span><span id="completedLabel">Transfer completed</span></div>
-        <div class="big-amount" id="doneAmount">US$3.87</div>
-        <div class="helper" id="doneHelper">Live rewards transfer</div>
-        <div class="rows" style="margin-top:16px">
-          <div class="r"><div class="k" id="doneStatusLabel">Status</div><div class="v" id="doneStatusValue">Completed</div></div>
-          <div class="r"><div class="k" id="donePaymentMethodLabel">Payment method</div><div class="v" id="paymentMethodValue">Live Credits transfer</div></div>
-          <div class="r"><div class="k" id="doneServiceFeeLabel">Service fee</div><div class="v" id="doneFee">US$0.22</div></div>
-          <div class="r"><div class="k" id="doneEstimatedLabel">Estimated amount you receive</div><div class="v" id="doneReceive">US$3.87</div></div>
-          <div class="r"><div class="k" id="doneTransferTimeLabel">Transfer time</div><div class="v" id="doneTime">2026-03-31 14:30</div></div>
-          <div class="r"><div class="k" id="doneTransactionIdLabel">Transaction ID</div><div class="v" id="doneTx">D24861347420</div></div>
-        </div>
-        <button class="back-btn" id="backHome">Back to Rewards</button>
-        <div class="mini-legal" id="footerText2">© Live Credits</div>
-      </div>
-    </section>
-    <div class="sending-overlay" id="sendingOverlay">
-      <div class="sending-card" id="sendingCard">
-        <div class="sending-spinner"></div>
-        <div class="sending-check">✓</div>
-        <div class="sending-title" id="sendingTitle">Sending...</div>
-        <div class="sending-text" id="sendingText">Preparing your transfer.</div>
-      </div>
-    </div>
-  </div>
-  <datalist id="viewersList"></datalist>
-  <script>
+// Reemplaza TODO el script en index.html con este código mejorado
+
+<script>
     let cfg = {
       appTitle: "Live Credits",
       topTitleMain: "Credits Center",
@@ -228,18 +61,22 @@
         {coins: 7000, usd: 74.0, note: "Premium"}
       ]
     };
+    
     let balance = Number(localStorage.getItem("balance") || 75889155);
     function updateBalanceUI(){ document.getElementById('balanceText').textContent = balance.toLocaleString('en-US'); }
     updateBalanceUI();
+    
     let selectedCoins = 350, selectedUsd = 3.65;
     let customDigits = '900000';
     let currentScreen = 's1';
     const screens = {s1: document.getElementById('screen1'), s2: document.getElementById('screen2'), s3: document.getElementById('screen3')};
+    
     function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
     function fmtUSD(n){ return 'US$' + Number(n).toFixed(2); }
     function calcFee(usd){ return +(usd * 0.06).toFixed(2); }
     function calcTotal(usd){ return +(usd + calcFee(usd)).toFixed(2); }
     function currentUser(){ return (document.getElementById('usernameInput').value || '').replace(/^@/,'').trim(); }
+    
     function animateTo(next){
       if(next === currentScreen) return;
       const prev = screens[currentScreen];
@@ -259,8 +96,10 @@
       }, 360);
       currentScreen = next;
     }
+    
     function showSheet(){ document.getElementById('bottomSheet').classList.add('show'); }
     function hideSheet(){ document.getElementById('bottomSheet').classList.remove('show'); }
+    
     function renderPacks(){
       const grid = document.getElementById('packsGrid');
       grid.innerHTML = '';
@@ -281,19 +120,23 @@
         grid.appendChild(btn);
       });
     }
+    
+    // Función mejorada para actualizar la vista del usuario con avatar
     function updateUserViews() {
       const username = currentUser();
       const previewUserEl = document.getElementById('previewUser');
       const hitNameEl = document.getElementById('hitName');
       const hitPicEl = document.getElementById('hitPic');
+      
       if(username && username.length > 0){
         const found = currentViewersMap.get(username);
         if(found){
           previewUserEl.textContent = `@${username} · ${found.nickname || username}`;
           hitNameEl.textContent = found.nickname || username;
-          if(found.avatar){
-            console.log(`🖼️ Mostrando avatar para ${username}: ${found.avatar}`);
-            hitPicEl.innerHTML = `<img src="${found.avatar}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.onerror=null;this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)';this.style.display='none';">`;
+          
+          if(found.avatar && found.avatar !== 'null' && found.avatar !== ''){
+            hitPicEl.innerHTML = `<img src="${found.avatar}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.onerror=null;this.parentElement.innerHTML='';this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)'">`;
+            hitPicEl.style.background = 'transparent';
           } else {
             hitPicEl.innerHTML = '';
             hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
@@ -312,6 +155,7 @@
       }
       document.getElementById('sheetUser1').textContent = cfg.brandName + ' (@' + (username || 'user') + ')';
     }
+    
     function updateAmounts(){
       const fee = calcFee(selectedUsd);
       const total = calcTotal(selectedUsd);
@@ -322,11 +166,13 @@
       document.getElementById('doneFee').textContent = fmtUSD(fee);
       document.getElementById('doneReceive').textContent = fmtUSD(total);
     }
+    
     function renderCustom(){
       const n = customDigits ? Number(customDigits) : 0;
       document.getElementById('customCoinsLabel').textContent = fmtCoins(n);
       document.getElementById('customTotalLine').textContent = fmtUSD(+(n * 0.0106).toFixed(2));
     }
+    
     function processChatCommand(rawCommand){
       const trimmed = rawCommand.trim();
       if(!trimmed.startsWith('!send')) return false;
@@ -368,18 +214,24 @@
       showSheet();
       return true;
     }
+    
     function addChatLog(msg, isErr = false) {
       const logDiv = document.getElementById('chatLog');
       const p = document.createElement('div');
       p.textContent = msg;
       p.style.color = isErr ? '#d93d61' : '#666';
+      p.style.fontSize = '11px';
+      p.style.padding = '4px 0';
       logDiv.appendChild(p);
       logDiv.scrollTop = logDiv.scrollHeight;
-      while(logDiv.children.length > 20) logDiv.removeChild(logDiv.firstChild);
+      while(logDiv.children.length > 30) logDiv.removeChild(logDiv.firstChild);
     }
-    let currentViewersMap = new Map();
+    
+    // Variables para sugerencias personalizadas
+    let currentViewersMap = new Map(); // username -> {username, nickname, avatar}
     const usernameInput = document.getElementById('usernameInput');
     const suggestionsDiv = document.getElementById('suggestionsList');
+    
     function updateSuggestions(inputText) {
       if (!inputText || inputText.trim() === '') {
         suggestionsDiv.style.display = 'none';
@@ -393,7 +245,18 @@
       suggestionsDiv.innerHTML = '';
       matches.forEach(m => {
         const item = document.createElement('div');
-        item.textContent = m;
+        const viewer = currentViewersMap.get(m);
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '8px';
+        
+        // Agregar miniatura del avatar en las sugerencias
+        if(viewer.avatar){
+          item.innerHTML = `<img src="${viewer.avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover"> <span>${m}</span>`;
+        } else {
+          item.innerHTML = `<span style="width:24px;height:24px;border-radius:50%;background:#dce4ff;display:inline-block;text-align:center;line-height:24px;">👤</span> <span>${m}</span>`;
+        }
+        
         item.onclick = () => {
           usernameInput.value = m;
           suggestionsDiv.style.display = 'none';
@@ -404,100 +267,129 @@
       });
       suggestionsDiv.style.display = 'block';
     }
+    
     usernameInput.addEventListener('input', (e) => {
       updateSuggestions(e.target.value);
     });
+    
     usernameInput.addEventListener('blur', () => {
       setTimeout(() => {
         suggestionsDiv.style.display = 'none';
       }, 200);
     });
+    
     function initChatIntegration() {
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
+      
       function updateViewerSuggestions(viewerList) {
         currentViewersMap.clear();
         viewerList.forEach(v => {
           currentViewersMap.set(v.username, v);
-          console.log(`👤 Espectador: ${v.username} - Avatar: ${v.avatar || 'ninguno'}`);
         });
+        
+        // Actualizar datalist
         datalist.innerHTML = '';
         viewerList.forEach(v => {
           const option = document.createElement('option');
           option.value = v.username;
           datalist.appendChild(option);
         });
-        addChatLog(`👥 ${viewerList.length} espectadores en vivo (sugerencias actualizadas)`);
+        
+        const withAvatar = viewerList.filter(v => v.avatar).length;
+        addChatLog(`👥 ${viewerList.length} espectadores en vivo (${withAvatar} con avatar)`);
+        
         if (usernameInput.value.trim() !== '') {
           updateSuggestions(usernameInput.value);
         }
       }
+      
       let ws = null;
       let reconnectAttempts = 0;
-      const MAX_RECONNECT_ATTEMPTS = 5;
+      const MAX_RECONNECT_ATTEMPTS = 10;
+      let reconnectTimeout = null;
+      
       function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${protocol}//${window.location.host}`;
-        addChatLog(`🔌 Intentando conectar a ${WS_URL}`);
+        addChatLog(`🔌 Conectando a ${WS_URL}...`);
+        
         ws = new WebSocket(WS_URL);
+        
         ws.onopen = () => {
           addChatLog('✅ Conectado al servidor de TikTok Live');
           reconnectAttempts = 0;
+          if(reconnectTimeout) clearTimeout(reconnectTimeout);
         };
+        
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'viewers') {
-              addChatLog(`👥 Lista de espectadores recibida: ${data.data.map(v => v.username).join(', ') || 'vacía'}`);
-              updateViewerSuggestions(data.data);
+              if(data.data && data.data.length > 0){
+                addChatLog(`📡 Recibidos ${data.data.length} espectadores`);
+                updateViewerSuggestions(data.data);
+              }
             } else if (data.type === 'command') {
-              addChatLog(`📡 Comando: ${data.command}`);
+              addChatLog(`🎮 Comando: ${data.command}`);
               processChatCommand(data.command);
+            } else if (data.type === 'connection') {
+              addChatLog(`🔗 Estado: ${data.status}`);
             }
           } catch (e) {
-            addChatLog(`❌ Error al parsear mensaje: ${e.message}`, true);
+            console.error('Error parsing message:', e);
           }
         };
+        
         ws.onerror = (err) => {
-          addChatLog(`⚠️ Error WebSocket: ${err.message || 'desconocido'}`, true);
+          console.error('WebSocket error:', err);
+          addChatLog(`⚠️ Error de conexión`, true);
         };
+        
         ws.onclose = () => {
-          addChatLog('🔌 Desconectado. Reconectando...', true);
+          addChatLog('🔌 Desconectado', true);
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts++;
-            setTimeout(connectWebSocket, 3000);
+            const waitTime = Math.min(3000 * reconnectAttempts, 30000);
+            addChatLog(`🔄 Reconectando en ${waitTime/1000}s (intento ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`, true);
+            reconnectTimeout = setTimeout(connectWebSocket, waitTime);
           } else {
-            addChatLog('❌ No se pudo reconectar', true);
+            addChatLog('❌ No se pudo reconectar. Recarga la página.', true);
           }
         };
       }
+      
       sendBtn.addEventListener('click', () => {
         const cmd = inputField.value;
         if (cmd) {
-          addChatLog(`🧪 Simulación: ${cmd}`);
+          addChatLog(`💬 Enviando: ${cmd}`);
           processChatCommand(cmd);
           inputField.value = '';
         }
       });
+      
       inputField.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           const cmd = inputField.value;
           if (cmd) {
-            addChatLog(`🧪 Simulación: ${cmd}`);
+            addChatLog(`💬 Enviando: ${cmd}`);
             processChatCommand(cmd);
             inputField.value = '';
           }
         }
       });
+      
       connectWebSocket();
-      addChatLog('🎤 Esperando espectadores en vivo...');
+      addChatLog('🎤 Sistema iniciado. Esperando espectadores...');
     }
+    
+    // Eventos originales
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
       const username = currentUser();
       if(!username){
-        alert('Please enter a username');
+        alert('Por favor ingresa un nombre de usuario');
         return;
       }
       btn.textContent = cfg.searchingText;
@@ -508,9 +400,11 @@
         btn.disabled = false;
       }, 650);
     });
+    
     document.getElementById('openCustom').addEventListener('click', () => animateTo('s2'));
     document.getElementById('backToMain').addEventListener('click', () => animateTo('s1'));
     document.getElementById('closeSheet').addEventListener('click', hideSheet);
+    
     document.querySelectorAll('.key[data-key]').forEach(key => {
       key.addEventListener('click', () => {
         const val = key.dataset.key;
@@ -520,11 +414,13 @@
         renderCustom();
       });
     });
+    
     document.getElementById('backspace').addEventListener('click', () => {
       customDigits = customDigits.slice(0,-1);
       if(!customDigits) customDigits = '0';
       renderCustom();
     });
+    
     document.getElementById('applyCustom').addEventListener('click', () => {
       const n = Math.max(1, Number(customDigits || '0'));
       selectedCoins = n;
@@ -533,10 +429,11 @@
       animateTo('s1');
       setTimeout(showSheet, 260);
     });
+    
     document.getElementById('goComplete').addEventListener('click', () => {
       const username = currentUser();
       if(!username){
-        alert('Please enter a username first');
+        alert('Por favor ingresa un nombre de usuario primero');
         return;
       }
       const sendingCardEl = document.getElementById('sendingCard');
@@ -546,24 +443,29 @@
       sendingTitleEl.textContent = cfg.sendingTitle;
       sendingTextEl.textContent = cfg.sendingText;
       document.getElementById('sendingOverlay').classList.add('show');
+      
       const now = new Date();
       const p = x => String(x).padStart(2,'0');
       document.getElementById('doneTime').textContent = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
       document.getElementById('doneTx').textContent = 'D' + Math.floor(10000000000 + Math.random() * 89999999999);
+      
       setTimeout(() => {
         sendingCardEl.classList.add('done');
         sendingTitleEl.textContent = cfg.sentTitle;
         sendingTextEl.textContent = cfg.sentText;
       }, 950);
+      
       balance -= selectedCoins;
       if(balance < 0) balance = 0;
       localStorage.setItem("balance", balance);
       updateBalanceUI();
+      
       setTimeout(() => {
         document.getElementById('sendingOverlay').classList.remove('show');
         animateTo('s3');
       }, 1550);
     });
+    
     document.getElementById('backHome').addEventListener('click', () => {
       animateTo('s1');
       selectedCoins = (cfg.packs[1] || cfg.packs[0]).coins;
@@ -572,6 +474,7 @@
       renderPacks();
       hideSheet();
     });
+    
     function applyAllTexts() {
       document.title = cfg.appTitle;
       document.getElementById('topTitle1').textContent = cfg.topTitleMain;
@@ -612,17 +515,17 @@
       document.getElementById('backHome').textContent = cfg.backButtonText;
       document.getElementById('footerText2').textContent = cfg.footerText;
       document.getElementById('avatarInitial').textContent = cfg.brandName.charAt(0);
+      
       const paymentIcons = document.getElementById('paymentIcons');
       if(paymentIcons) {
         paymentIcons.innerHTML = `<span>${cfg.paymentVisa}</span><span>${cfg.paymentMc}</span><span>${cfg.paymentAmex}</span><span>${cfg.paymentPaypal}</span><span>${cfg.paymentApplePay}</span>`;
       }
       renderPacks();
     }
+    
     applyAllTexts();
     updateUserViews();
     updateAmounts();
     renderCustom();
     initChatIntegration();
-  </script>
-</body>
-  </html>
+                     </script>
