@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Live Credits - TikTok Integration</title>
   <style>
-    /* Mantén todos tus estilos existentes aquí */
     :root{--bg:#f2f2f7;--card:#fff;--text:#111;--muted:#8e8e93;--line:#ececf1;--pink:#fe2c55;--pink2:#ff4f7a;--green:#19a55a;--gold1:#fff2ae;--gold2:#f4ca39;--gold3:#c99200;--shadow:0 12px 28px rgba(0,0,0,.08);--radius:22px}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} 
     html,body{margin:0;padding:0;background:#0f0f10;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text)}
@@ -23,7 +22,7 @@
     .label{margin:20px 0 8px;font-size:15px;font-weight:800}.tiny-red{font-size:12px;color:#d93d61;margin-bottom:8px}.row{display:flex;gap:10px;align-items:center}
     .input{flex:1;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;font-size:16px;outline:none;transition:all .2s}.input:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(254,44,85,.1)}
     .btn{border:none;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s}.btn-pink{color:#fff;background:linear-gradient(90deg,var(--pink),var(--pink2))}.btn-pink:active{transform:scale(.97)}
-    .hit{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px;display:flex;gap:12px;align-items:center}.hit-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#a3b9ff);background-size:cover;background-position:center}.hit-name{font-size:16px;font-weight:800}.hit-user{font-size:13px;color:#777;margin-top:4px}
+    .hit{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px;display:flex;gap:12px;align-items:center}.hit-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dce4ff,#a3b9ff);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center}.hit-name{font-size:16px;font-weight:800}.hit-user{font-size:13px;color:#777;margin-top:4px}
     .section{margin-top:18px;padding:16px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.section-title{font-size:18px;font-weight:800}.section-right{font-size:12px;color:#777}.save{color:#d93d61;font-size:12px;margin-bottom:12px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pack{border:1px solid var(--line);border-radius:18px;background:#fff;padding:14px;text-align:left;cursor:pointer;transition:.18s ease}.pack.active{border-color:#ff9fb8;background:#fff3f7;box-shadow:0 0 0 2px rgba(254,44,85,.04) inset}.pack-main{display:flex;align-items:center;gap:8px;font-weight:900;font-size:16px}.pack-price{margin-top:7px;color:#666;font-size:13px}.pack-note{margin-top:4px;color:#a1a1ab;font-size:11px}
     .custom-box{margin-top:12px;border:1px dashed #d9d9e3;border-radius:16px;background:#fff;padding:14px;cursor:pointer}.custom-box .small{font-size:12px;color:#777;margin-bottom:8px}.pay-icons{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pay-icons span{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;color:#666;font-weight:600}
@@ -101,7 +100,6 @@
             </div>
             <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
           </div>
-          <!-- Panel de debug -->
           <div class="debug-panel" id="debugPanel">
             <strong>🔍 Debug:</strong> Conectando al servidor...
           </div>
@@ -256,6 +254,9 @@
       const time = new Date().toLocaleTimeString();
       debugPanel.innerHTML += `<div style="border-top:1px solid #333;margin-top:4px;padding-top:4px">[${time}] ${msg}</div>`;
       debugPanel.scrollTop = debugPanel.scrollHeight;
+      if (debugPanel.children.length > 50) {
+        while(debugPanel.children.length > 40) debugPanel.removeChild(debugPanel.firstChild);
+      }
       console.log(`[DEBUG] ${msg}`);
     }
     
@@ -309,37 +310,75 @@
       const hitNameEl = document.getElementById('hitName');
       const hitPicEl = document.getElementById('hitPic');
       
-      addDebugLog(`Buscando usuario: "${username}"`);
+      addDebugLog(`🔍 Buscando usuario: "${username}"`);
       
       if(username && username.length > 0){
         const found = currentViewersMap.get(username);
         if(found){
-          addDebugLog(`✅ Usuario encontrado: ${found.nickname}, Avatar: ${found.avatar ? 'SÍ' : 'NO'}`);
+          addDebugLog(`✅ Encontrado: ${found.nickname}`);
+          addDebugLog(`📸 Avatar URL: ${found.avatar || 'ninguno'}`);
+          
           previewUserEl.textContent = `@${username} · ${found.nickname || username}`;
           hitNameEl.textContent = found.nickname || username;
           
           if(found.avatar && found.avatar !== 'null' && found.avatar !== ''){
-            addDebugLog(`🖼️ Cargando avatar: ${found.avatar}`);
-            hitPicEl.innerHTML = `<img src="${found.avatar}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.onerror=null;console.error('Error cargando imagen'); this.parentElement.innerHTML='';this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)'">`;
-            hitPicEl.style.background = 'transparent';
+            let avatarUrl = found.avatar;
+            if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('/proxy-image')) {
+              avatarUrl = `/proxy-image?url=${encodeURIComponent(avatarUrl)}`;
+            }
+            
+            addDebugLog(`🖼️ Cargando avatar desde: ${avatarUrl.substring(0, 80)}`);
+            
+            const img = new Image();
+            img.onload = function() {
+              hitPicEl.innerHTML = `<img src="${avatarUrl}" alt="${found.nickname}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+              hitPicEl.style.background = 'transparent';
+              hitPicEl.style.display = 'flex';
+              addDebugLog(`✅ Avatar cargado exitosamente`);
+            };
+            img.onerror = function() {
+              addDebugLog(`❌ Error cargando avatar, usando inicial`);
+              hitPicEl.innerHTML = '';
+              hitPicEl.style.background = 'linear-gradient(135deg,#fe2c55,#ff4f7a)';
+              hitPicEl.style.display = 'flex';
+              hitPicEl.style.alignItems = 'center';
+              hitPicEl.style.justifyContent = 'center';
+              hitPicEl.style.color = 'white';
+              hitPicEl.style.fontSize = '20px';
+              hitPicEl.style.fontWeight = 'bold';
+              hitPicEl.innerText = found.nickname ? found.nickname.charAt(0).toUpperCase() : '?';
+            };
+            img.src = avatarUrl;
           } else {
-            addDebugLog(`⚠️ Usuario sin avatar, usando placeholder`);
+            addDebugLog(`⚠️ Sin avatar, usando inicial`);
             hitPicEl.innerHTML = '';
-            hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+            hitPicEl.style.background = 'linear-gradient(135deg,#fe2c55,#ff4f7a)';
+            hitPicEl.style.display = 'flex';
+            hitPicEl.style.alignItems = 'center';
+            hitPicEl.style.justifyContent = 'center';
+            hitPicEl.style.color = 'white';
+            hitPicEl.style.fontSize = '20px';
+            hitPicEl.style.fontWeight = 'bold';
+            hitPicEl.innerText = found.nickname ? found.nickname.charAt(0).toUpperCase() : '?';
           }
         } else {
-          addDebugLog(`⚠️ Usuario "${username}" no encontrado en la lista de espectadores`);
+          addDebugLog(`⚠️ "${username}" no está en la lista de espectadores`);
           previewUserEl.textContent = `@${username} · ${cfg.hitMetaDefault}`;
           hitNameEl.textContent = username;
           hitPicEl.innerHTML = '';
           hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+          hitPicEl.style.display = '';
+          hitPicEl.innerText = '';
         }
       } else {
         previewUserEl.textContent = 'No user selected';
         hitNameEl.textContent = cfg.hitNameDefault;
         hitPicEl.innerHTML = '';
         hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
+        hitPicEl.style.display = '';
+        hitPicEl.innerText = '';
       }
+      
       document.getElementById('sheetUser1').textContent = cfg.brandName + ' (@' + (username || 'user') + ')';
     }
     
@@ -435,12 +474,31 @@
         const viewer = currentViewersMap.get(m);
         item.style.display = 'flex';
         item.style.alignItems = 'center';
-        item.style.gap = '8px';
+        item.style.gap = '12px';
+        item.style.padding = '10px';
         
         if(viewer && viewer.avatar){
-          item.innerHTML = `<img src="${viewer.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover" onerror="this.src=''"> <span><strong>${m}</strong><br><small>${viewer.nickname || m}</small></span>`;
+          let avatarUrl = viewer.avatar;
+          if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('/proxy-image')) {
+            avatarUrl = `/proxy-image?url=${encodeURIComponent(avatarUrl)}`;
+          }
+          item.innerHTML = `
+            <img src="${avatarUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" 
+                 onerror="this.style.display='none';this.nextSibling.style.display='flex'">
+            <div style="display:flex;flex-direction:column;flex:1">
+              <strong>@${m}</strong>
+              <small style="color:#666">${viewer.nickname || m}</small>
+            </div>
+          `;
         } else {
-          item.innerHTML = `<span style="width:28px;height:28px;border-radius:50%;background:#dce4ff;display:inline-flex;align-items:center;justify-content:center;">👤</span> <span><strong>${m}</strong></span>`;
+          const initial = (viewer?.nickname || m).charAt(0).toUpperCase();
+          item.innerHTML = `
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#fe2c55,#ff4f7a);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold">${initial}</div>
+            <div style="display:flex;flex-direction:column;flex:1">
+              <strong>@${m}</strong>
+              <small style="color:#666">${viewer?.nickname || m}</small>
+            </div>
+          `;
         }
         
         item.onclick = () => {
@@ -577,7 +635,6 @@
       addDebugLog('🎤 Sistema iniciado. Esperando espectadores...');
     }
     
-    // Eventos UI
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
       const username = currentUser();
@@ -723,4 +780,4 @@
     initChatIntegration();
   </script>
 </body>
-                                                           </html>
+          </html>
