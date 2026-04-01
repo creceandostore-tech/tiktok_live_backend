@@ -12,6 +12,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Tu API Key de TikTool
 const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
 const TIKTOOL_API_URL = 'https://api.tik.tools';
 
@@ -28,16 +29,23 @@ const RECONNECT_DELAY = 3000;
 const HEARTBEAT_INTERVAL = 20000;
 const BROADCAST_INTERVAL = 3000;
 
+// Cache de avatares
 const avatarCache = new Map();
 const pendingAvatarRequests = new Map();
-const priorityUsers = new Set();
 
+// Función para obtener avatar de TikTool API
 async function fetchUserAvatar(uniqueId) {
-    if (avatarCache.has(uniqueId)) return avatarCache.get(uniqueId);
-    if (pendingAvatarRequests.has(uniqueId)) return pendingAvatarRequests.get(uniqueId);
+    if (avatarCache.has(uniqueId)) {
+        return avatarCache.get(uniqueId);
+    }
+    
+    if (pendingAvatarRequests.has(uniqueId)) {
+        return pendingAvatarRequests.get(uniqueId);
+    }
     
     const promise = (async () => {
         try {
+            console.log(`🔍 Buscando avatar para @${uniqueId}...`);
             const response = await fetch(`${TIKTOOL_API_URL}/user/${uniqueId}`, {
                 headers: {
                     'Authorization': `Bearer ${TIKTOOL_API_KEY}`,
@@ -47,19 +55,34 @@ async function fetchUserAvatar(uniqueId) {
             
             if (response.ok) {
                 const data = await response.json();
-                const avatarUrl = data?.user?.avatar || data?.avatar || data?.profilePicture || null;
-                if (avatarUrl) {
+                // Probar diferentes rutas donde puede estar el avatar
+                const avatarUrl = data?.user?.avatar || 
+                                 data?.avatar || 
+                                 data?.profilePicture || 
+                                 data?.user?.profilePicture ||
+                                 data?.user?.avatarThumbnail ||
+                                 null;
+                
+                if (avatarUrl && avatarUrl.startsWith('http')) {
+                    console.log(`✅ Avatar encontrado para @${uniqueId}: ${avatarUrl.substring(0, 50)}...`);
                     avatarCache.set(uniqueId, avatarUrl);
+                    // Limitar tamaño del cache
                     if (avatarCache.size > 10000) {
                         const firstKey = avatarCache.keys().next().value;
                         avatarCache.delete(firstKey);
                     }
                     return avatarUrl;
+                } else {
+                    console.log(`⚠️ No se encontró avatar para @${uniqueId}`);
+                    avatarCache.set(uniqueId, null);
+                    return null;
                 }
+            } else {
+                console.log(`❌ Error ${response.status} al buscar avatar para @${uniqueId}`);
+                return null;
             }
-            return null;
         } catch (error) {
-            console.error(`Error fetching avatar for ${uniqueId}:`, error.message);
+            console.error(`❌ Error fetching avatar for ${uniqueId}:`, error.message);
             return null;
         } finally {
             pendingAvatarRequests.delete(uniqueId);
@@ -70,27 +93,44 @@ async function fetchUserAvatar(uniqueId) {
     return promise;
 }
 
-function getAvatarUrl(user) {
+// Obtener avatar de los datos del evento (más rápido)
+function getAvatarFromEvent(user) {
     try {
         if (user?.avatarThumbnail?.url) return user.avatarThumbnail.url;
         if (user?.avatarMedium?.url) return user.avatarMedium.url;
         if (user?.avatarLarge?.url) return user.avatarLarge.url;
-    } catch (e) {}
-    return null;
+        if (user?.profilePicture) return user.profilePicture;
+        return null;
+    } catch (e) {
+        return null;
+    }
 }
 
+// Obtener el mejor avatar disponible
 async function getBestAvatar(uniqueId, userData) {
-    const directAvatar = getAvatarUrl(userData);
-    if (directAvatar) return directAvatar;
-    
-    if (priorityUsers.has(uniqueId)) {
-        const apiAvatar = await fetchUserAvatar(uniqueId);
-        if (apiAvatar) return apiAvatar;
+    // 1. Intentar del evento primero (más rápido)
+    const eventAvatar = getAvatarFromEvent(userData);
+    if (eventAvatar && eventAvatar.startsWith('http')) {
+        console.log(`📸 Avatar del evento para @${uniqueId}`);
+        return eventAvatar;
     }
     
-    if (avatarCache.has(uniqueId)) return avatarCache.get(uniqueId);
+    // 2. Buscar en cache
+    if (avatarCache.has(uniqueId)) {
+        const cached = avatarCache.get(uniqueId);
+        if (cached) {
+            console.log(`💾 Avatar en cache para @${uniqueId}`);
+            return cached;
+        }
+    }
     
-    fetchUserAvatar(uniqueId).catch(console.error);
+    // 3. Buscar en API de TikTool (asíncrono)
+    console.log(`🌐 Buscando avatar en API para @${uniqueId}...`);
+    const apiAvatar = await fetchUserAvatar(uniqueId);
+    if (apiAvatar) {
+        return apiAvatar;
+    }
+    
     return null;
 }
 
@@ -98,8 +138,7 @@ function broadcastViewers() {
     const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
         username: v.username,
         nickname: v.nickname,
-        avatar: v.avatar,
-        isPriority: v.isPriority || false
+        avatar: v.avatar
     }));
     
     const message = JSON.stringify({ type: 'viewers', data: viewerList, total: viewers.size });
@@ -153,12 +192,11 @@ function cleanupViewers() {
         console.log(`🧹 Limpiados ${toDelete} espectadores. Total: ${viewers.size}`);
         broadcastViewers();
     }
-    if (priorityUsers.size > 1000) priorityUsers.clear();
     
     const memUsage = process.memoryUsage();
     const usedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
     if (Math.random() < 0.05) {
-        console.log(`📊 Memoria: ${usedMB}MB | Espectadores: ${viewers.size} | Prioridad: ${priorityUsers.size}`);
+        console.log(`📊 Memoria: ${usedMB}MB | Espectadores: ${viewers.size}`);
     }
 }
 
@@ -178,7 +216,7 @@ async function connectToTikTok(username) {
     }
     if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
     
-    console.log(`🔌 Conectando a @${username} (Máx ${MAX_VIEWERS_LIMIT} espectadores) usando TikTool API`);
+    console.log(`🔌 Conectando a @${username} (Máx ${MAX_VIEWERS_LIMIT} espectadores)`);
     broadcastStatus(false, `Connecting to @${username}...`);
     
     try {
@@ -260,28 +298,27 @@ function setupEventHandlers(username) {
         batch.forEach(async update => {
             if (update.type === 'add' && !viewers.has(update.id) && viewers.size < MAX_VIEWERS_LIMIT) {
                 let avatar = null;
-                if (update.isPriority) {
-                    avatar = await getBestAvatar(update.id, update.userData);
-                } else {
-                    avatar = getAvatarUrl(update.userData);
-                    if (!avatar && avatarCache.has(update.id)) avatar = avatarCache.get(update.id);
-                    else if (!avatar) {
-                        fetchUserAvatar(update.id).then(av => {
-                            if (av && viewers.has(update.id)) {
-                                viewers.get(update.id).avatar = av;
-                                throttledBroadcastViewers();
-                            }
-                        });
-                    }
-                }
+                
+                // Intentar obtener avatar inmediatamente
+                avatar = await getBestAvatar(update.id, update.userData);
+                
                 viewers.set(update.id, {
                     username: update.id,
-                    nickname: update.nickname,
+                    nickname: update.userData?.nickname || update.userData?.displayId || update.id,
                     avatar: avatar,
-                    joinedAt: Date.now(),
-                    isPriority: update.isPriority || false
+                    joinedAt: Date.now()
                 });
                 changed = true;
+                
+                // Si no se encontró avatar, buscar en segundo plano
+                if (!avatar) {
+                    fetchUserAvatar(update.id).then(av => {
+                        if (av && viewers.has(update.id)) {
+                            viewers.get(update.id).avatar = av;
+                            throttledBroadcastViewers();
+                        }
+                    });
+                }
             } else if (update.type === 'remove' && viewers.has(update.id)) {
                 viewers.delete(update.id);
                 changed = true;
@@ -299,14 +336,16 @@ function setupEventHandlers(username) {
         if (pendingUpdates.length > 0) setTimeout(processUpdates, 100);
     }
     
-    function queueUpdate(type, id, nickname = null, userData = null, isPriority = false) {
-        pendingUpdates.push({ type, id, nickname, userData, isPriority });
+    function queueUpdate(type, id, nickname = null, userData = null) {
+        pendingUpdates.push({ type, id, nickname, userData });
         processUpdates();
     }
+    
     function queueAvatarUpdate(id, avatar) {
         pendingUpdates.push({ type: 'update_avatar', id, avatar });
         processUpdates();
     }
+    
     function throttledBroadcastViewers() {
         const now = Date.now();
         if (now - lastBroadcastTime >= BROADCAST_INTERVAL) {
@@ -331,7 +370,7 @@ function setupEventHandlers(username) {
         console.log(`🔌 Desconectado: ${reason} - Manteniendo ${viewers.size} espectadores`);
         broadcastStatus(false, `Disconnected - Preserving ${viewers.size} viewers`, viewers.size);
         if (!isManualDisconnect && currentUsername) setTimeout(() => reconnectToTikTok(), 2000);
-        else if (isManualDisconnect) { viewers.clear(); priorityUsers.clear(); broadcastViewers(); }
+        else if (isManualDisconnect) { viewers.clear(); broadcastViewers(); }
     });
     
     tiktokConnection.on(WebcastEvent.ERROR, (error) => {
@@ -351,23 +390,24 @@ function setupEventHandlers(username) {
         if (data?.user?.uniqueId && data.user.uniqueId !== username) {
             const userId = data.user.uniqueId;
             console.log(`🎁 REGALO RECIBIDO de @${userId} - ${data.giftName || 'gift'} x${data.repeatCount || 1}`);
-            priorityUsers.add(userId);
-            queueUpdate('add', userId, data.user.nickname || userId, data.user, true);
-            getBestAvatar(userId, data.user).then(avatar => { if (avatar) queueAvatarUpdate(userId, avatar); });
+            queueUpdate('add', userId, data.user.nickname || userId, data.user);
+            // Prioridad para obtener avatar de quien envía regalos
+            getBestAvatar(userId, data.user).then(avatar => {
+                if (avatar) queueAvatarUpdate(userId, avatar);
+            });
         }
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER, (data) => {
         if (data?.user?.uniqueId && data.user.uniqueId !== username) {
-            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user, priorityUsers.has(data.user.uniqueId));
+            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user);
         }
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
         if (data?.user?.uniqueId && data.user.uniqueId !== username) {
-            const isPriority = priorityUsers.has(data.user.uniqueId);
-            console.log(`➕ ${isPriority ? '⭐' : ''} +${data.user.uniqueId}`);
-            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user, isPriority);
+            console.log(`➕ +${data.user.uniqueId}`);
+            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user);
         }
     });
     
@@ -378,7 +418,7 @@ function setupEventHandlers(username) {
     
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         if (data?.user?.uniqueId && data.user.uniqueId !== username) {
-            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user, priorityUsers.has(data.user.uniqueId));
+            queueUpdate('add', data.user.uniqueId, data.user.nickname, data.user);
         }
         const comment = data?.comment?.trim() || '';
         if (comment.toLowerCase().startsWith('!send')) {
@@ -402,7 +442,9 @@ wss.on('connection', (ws) => {
     }));
     
     const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
-        username: v.username, nickname: v.nickname, avatar: v.avatar, isPriority: v.isPriority || false
+        username: v.username, 
+        nickname: v.nickname, 
+        avatar: v.avatar
     }));
     ws.send(JSON.stringify({ type: 'viewers', data: viewerList, total: viewers.size }));
     
@@ -429,7 +471,6 @@ app.get('/disconnect', async (req, res) => {
         if (tiktokConnection) await tiktokConnection.disconnect();
         tiktokConnection = null;
         viewers.clear();
-        priorityUsers.clear();
         currentUsername = null;
         broadcastViewers();
         broadcastStatus(false, 'Manually disconnected');
@@ -446,7 +487,6 @@ app.get('/status', (req, res) => {
         username: currentUsername,
         viewers: viewers.size,
         maxViewers: MAX_VIEWERS_LIMIT,
-        priorityUsers: priorityUsers.size,
         memory: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`
     });
 });
@@ -459,7 +499,6 @@ server.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`⚙️ Configuración:`);
     console.log(`   📊 Máximo espectadores: ${MAX_VIEWERS_LIMIT}`);
-    console.log(`   🎁 Prioridad: Usuarios que envían regalos`);
     console.log(`   🖼️ Fotos reales vía TikTool API`);
     console.log(`   🔄 Reconexión infinita hasta desconexión manual`);
 });
