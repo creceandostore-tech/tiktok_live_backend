@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Live Credits - TikTok Integration</title>
   <style>
-    /* (mismos estilos que antes, sin cambios) */
     :root{--bg:#f2f2f7;--card:#fff;--text:#111;--muted:#8e8e93;--line:#ececf1;--pink:#fe2c55;--pink2:#ff4f7a;--green:#19a55a;--gold1:#fff2ae;--gold2:#f4ca39;--gold3:#c99200;--shadow:0 12px 28px rgba(0,0,0,.08);--radius:22px}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} 
     html,body{margin:0;padding:0;background:#0f0f10;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text)}
@@ -282,14 +281,12 @@
         grid.appendChild(btn);
       });
     }
-    // Modificamos updateUserViews para usar el avatar real si existe
     function updateUserViews() {
       const username = currentUser();
       const previewUserEl = document.getElementById('previewUser');
       const hitNameEl = document.getElementById('hitName');
       const hitPicEl = document.getElementById('hitPic');
       if(username && username.length > 0){
-        // Buscar en los espectadores locales (currentViewersMap)
         const found = currentViewersMap.get(username);
         if(found){
           previewUserEl.textContent = `@${username} · ${found.nickname || username}`;
@@ -297,7 +294,6 @@
           if(found.avatar){
             console.log(`🖼️ Mostrando avatar para ${username}: ${found.avatar}`);
             hitPicEl.innerHTML = `<img src="${found.avatar}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.onerror=null;this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)';this.style.display='none';">`;
-            // Si la imagen falla, el onerror limpiará y pondrá el gradiente
           } else {
             hitPicEl.innerHTML = '';
             hitPicEl.style.background = 'linear-gradient(135deg,#dce4ff,#a3b9ff)';
@@ -381,8 +377,7 @@
       logDiv.scrollTop = logDiv.scrollHeight;
       while(logDiv.children.length > 20) logDiv.removeChild(logDiv.firstChild);
     }
-    // Variables para sugerencias personalizadas
-    let currentViewersMap = new Map(); // username -> {username, nickname, avatar}
+    let currentViewersMap = new Map();
     const usernameInput = document.getElementById('usernameInput');
     const suggestionsDiv = document.getElementById('suggestionsList');
     function updateSuggestions(inputText) {
@@ -422,13 +417,11 @@
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
       function updateViewerSuggestions(viewerList) {
-        // viewerList: array de objetos con username, nickname, avatar
         currentViewersMap.clear();
         viewerList.forEach(v => {
           currentViewersMap.set(v.username, v);
           console.log(`👤 Espectador: ${v.username} - Avatar: ${v.avatar || 'ninguno'}`);
         });
-        // Actualizar datalist solo con nombres de usuario
         datalist.innerHTML = '';
         viewerList.forEach(v => {
           const option = document.createElement('option');
@@ -500,7 +493,6 @@
       connectWebSocket();
       addChatLog('🎤 Esperando espectadores en vivo...');
     }
-    // Eventos originales
     document.getElementById('confirmUser').addEventListener('click', () => {
       const btn = document.getElementById('confirmUser');
       const username = currentUser();
@@ -633,4 +625,4 @@
     initChatIntegration();
   </script>
 </body>
-                                                         </html>
+  </html>
