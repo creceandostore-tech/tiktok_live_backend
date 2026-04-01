@@ -14,6 +14,7 @@
       --pink: #fe2c55;
       --pink2: #ff4f7a;
       --green: #19a55a;
+      --red: #ff3b30;
       --gold1: #fff2ae;
       --gold2: #f4ca39;
       --gold3: #c99200;
@@ -204,10 +205,14 @@
       color: #fff;
       background: linear-gradient(90deg, var(--pink), var(--pink2));
     }
-    .btn-pink:active {
+    .btn-red {
+      color: #fff;
+      background: linear-gradient(90deg, var(--red), #ff6b5e);
+    }
+    .btn-pink:active, .btn-red:active {
       transform: scale(.97);
     }
-    .btn-pink:disabled {
+    .btn-pink:disabled, .btn-red:disabled {
       opacity: 0.6;
       transform: none;
       cursor: not-allowed;
@@ -702,6 +707,14 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(1.2); }
     }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .button-group .btn {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -750,7 +763,7 @@
             <span>VISA</span><span>MC</span><span>AMEX</span><span>PayPal</span><span>Apple Pay</span>
           </div>
           
-          <!-- Panel de conexión a TikTok Live - MOVIDO AQUÍ DEBAJO DE LOS PACKS -->
+          <!-- Panel de conexión a TikTok Live -->
           <div class="connection-panel">
             <div class="connection-status">
               <div class="live-label">
@@ -764,7 +777,10 @@
             </div>
             <div class="row">
               <input type="text" id="tiktokUsername" class="input" placeholder="TikTok username (ej: elrubiuswtf)" />
+            </div>
+            <div class="button-group">
               <button id="connectTikTokBtn" class="btn btn-pink btn-small">Connect</button>
+              <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none;">Disconnect</button>
             </div>
             <div style="font-size: 10px; color: #888; margin-top: 10px; text-align: center;">
               💡 Conéctate a un live real para ver espectadores con sus fotos de perfil
@@ -1142,6 +1158,9 @@
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
       const datalist = document.getElementById('viewersList');
+      const connectBtn = document.getElementById('connectTikTokBtn');
+      const disconnectBtn = document.getElementById('disconnectTikTokBtn');
+      const tiktokUsernameInput = document.getElementById('tiktokUsername');
       
       function updateViewerSuggestions(viewerList) {
         currentViewersMap.clear();
@@ -1173,21 +1192,29 @@
         }
       }
       
-      let ws = null;
-      let reconnectAttempts = 0;
-      const MAX_RECONNECT_ATTEMPTS = 5;
-      
-      function updateConnectionStatus(connected, message = '') {
+      function updateConnectionStatus(connected, message = '', viewerCount = null) {
         const badge = document.getElementById('connectionStatusBadge');
         if(connected) {
           badge.className = 'status-badge connected';
           badge.innerHTML = '● Connected';
+          connectBtn.style.display = 'none';
+          disconnectBtn.style.display = 'block';
+          if(viewerCount !== null) {
+            document.getElementById('liveViewerCount').textContent = `👥 ${viewerCount}`;
+          }
         } else {
           badge.className = 'status-badge disconnected';
           badge.innerHTML = '● Disconnected';
+          connectBtn.style.display = 'block';
+          disconnectBtn.style.display = 'none';
+          document.getElementById('liveViewerCount').textContent = '';
         }
         if(message) addChatLog(message);
       }
+      
+      let ws = null;
+      let reconnectAttempts = 0;
+      const MAX_RECONNECT_ATTEMPTS = 10;
       
       function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1198,7 +1225,6 @@
         
         ws.onopen = () => {
           addChatLog('✅ Connected to TikTok Live server');
-          updateConnectionStatus(true);
           reconnectAttempts = 0;
         };
         
@@ -1211,6 +1237,10 @@
             } else if (data.type === 'command') {
               addChatLog(`📡 Command: ${data.command}`);
               processChatCommand(data.command);
+            } else if (data.type === 'connection_status') {
+              updateConnectionStatus(data.connected, data.message, data.viewerCount);
+            } else if (data.type === 'viewer_count') {
+              document.getElementById('liveViewerCount').textContent = `👥 ${data.count}`;
             }
           } catch (e) {
             addChatLog(`❌ Error parsing message: ${e.message}`, true);
@@ -1219,12 +1249,11 @@
         
         ws.onerror = (err) => {
           addChatLog(`⚠️ WebSocket error`, true);
-          updateConnectionStatus(false);
         };
         
         ws.onclose = () => {
           addChatLog('🔌 Disconnected. Reconnecting...', true);
-          updateConnectionStatus(false);
+          updateConnectionStatus(false, 'Disconnected - Reconnecting...');
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts++;
             setTimeout(connectWebSocket, 3000);
@@ -1232,8 +1261,23 @@
         };
       }
       
-      const connectBtn = document.getElementById('connectTikTokBtn');
-      const tiktokUsernameInput = document.getElementById('tiktokUsername');
+      // Función para desconectar
+      async function disconnectFromTikTok() {
+        try {
+          addChatLog('🔌 Desconectando de TikTok Live...');
+          const response = await fetch('/disconnect');
+          const result = await response.json();
+          if(result.status === 'disconnected') {
+            addChatLog('✅ Desconectado exitosamente');
+            updateConnectionStatus(false, 'Disconnected manually');
+            tiktokUsernameInput.value = '';
+          } else {
+            addChatLog('❌ Error al desconectar', true);
+          }
+        } catch(err) {
+          addChatLog(`❌ Error: ${err.message}`, true);
+        }
+      }
       
       connectBtn.addEventListener('click', async () => {
         const username = tiktokUsernameInput.value.trim();
@@ -1246,13 +1290,13 @@
         connectBtn.disabled = true;
         
         try {
-          const response = await fetch(`/connect/@${username}`);
+          const response = await fetch(`/connect/${username}`);
           const result = await response.json();
           if(result.status === 'connected') {
             addChatLog(`✅ Connected to @${username}'s live!`);
-            updateConnectionStatus(true, `Connected to @${username}`);
           } else {
             addChatLog(`❌ Failed to connect: ${result.error || 'Unknown error'}`, true);
+            updateConnectionStatus(false);
           }
         } catch(err) {
           addChatLog(`❌ Connection error: ${err.message}`, true);
@@ -1260,6 +1304,14 @@
           connectBtn.textContent = 'Connect';
           connectBtn.disabled = false;
         }
+      });
+      
+      disconnectBtn.addEventListener('click', async () => {
+        disconnectBtn.textContent = 'Disconnecting...';
+        disconnectBtn.disabled = true;
+        await disconnectFromTikTok();
+        disconnectBtn.textContent = 'Disconnect';
+        disconnectBtn.disabled = false;
       });
       
       sendBtn.addEventListener('click', () => {
@@ -1409,4 +1461,4 @@
     initChatIntegration();
   </script>
 </body>
-                                                                                                                        </html>
+            </html>
