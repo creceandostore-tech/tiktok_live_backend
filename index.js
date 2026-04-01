@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 const path = require('path');
+const axios = require('axios'); // Necesitas instalar: npm install axios
 
 const app = express();
 const server = http.createServer(app);
@@ -16,15 +17,65 @@ let tiktokConnection = null;
 let viewers = new Map();
 let currentUsername = null;
 
+// Cache de imágenes para evitar descargas repetidas
+const imageCache = new Map();
+
+// Proxy para imágenes de TikTok (evita problemas CORS)
+app.get('/proxy-image', async (req, res) => {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+        return res.status(400).send('No URL provided');
+    }
+    
+    try {
+        // Verificar cache
+        if (imageCache.has(imageUrl)) {
+            const cached = imageCache.get(imageUrl);
+            res.set('Content-Type', cached.contentType);
+            return res.send(cached.data);
+        }
+        
+        // Descargar la imagen
+        const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.tiktok.com/'
+            }
+        });
+        
+        const contentType = response.headers['content-type'];
+        
+        // Guardar en cache (máx 100 imágenes)
+        if (imageCache.size > 100) {
+            const firstKey = imageCache.keys().next().value;
+            imageCache.delete(firstKey);
+        }
+        
+        imageCache.set(imageUrl, {
+            data: response.data,
+            contentType: contentType
+        });
+        
+        res.set('Content-Type', contentType);
+        res.set('Cache-Control', 'public, max-age=86400'); // Cache por 24 horas
+        res.send(response.data);
+        
+    } catch (error) {
+        console.error('Error proxy image:', error.message);
+        res.status(404).send('Image not found');
+    }
+});
+
 function broadcastViewers() {
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
-        avatar: v.avatar || null
+        avatar: v.avatar ? `/proxy-image?url=${encodeURIComponent(v.avatar)}` : null
     }));
     
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista a ${clients.size} clientes:`, viewerList.slice(0, 5));
+    console.log(`📢 Enviando lista a ${clients.size} clientes`);
     
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -40,14 +91,37 @@ function broadcastCommand(command) {
     });
 }
 
-// Función para obtener el mejor avatar disponible
+// Función mejorada para obtener el mejor avatar disponible
 function getBestAvatar(userData) {
-    // Prioridad de avatares
-    if (userData.avatarLarge) return userData.avatarLarge;
-    if (userData.avatarMedium) return userData.avatarMedium;
-    if (userData.avatarThumbnail) return userData.avatarThumbnail;
-    if (userData.profilePicture) return userData.profilePicture;
-    if (userData.avatar) return userData.avatar;
+    // Lista de posibles campos de avatar en orden de prioridad
+    const avatarFields = [
+        'avatarLarge',
+        'avatarMedium', 
+        'avatarThumbnail',
+        'profilePicture',
+        'avatar',
+        'picture',
+        'photo'
+    ];
+    
+    for (const field of avatarFields) {
+        if (userData[field] && typeof userData[field] === 'string') {
+            let url = userData[field];
+            // Asegurar que la URL sea absoluta
+            if (url.startsWith('//')) {
+                url = 'https:' + url;
+            }
+            if (url.startsWith('http')) {
+                return url;
+            }
+        }
+    }
+    
+    // Si no hay avatar, generar uno basado en el nombre de usuario (Gravatar-like)
+    if (userData.uniqueId) {
+        return `https://ui-avatars.com/api/?background=fe2c55&color=fff&bold=true&size=100&name=${encodeURIComponent(userData.nickname || userData.uniqueId)}`;
+    }
+    
     return null;
 }
 
@@ -76,7 +150,9 @@ async function connectToTikTok(username) {
         enableExtendedGiftInfo: true,
         processInitialData: true,
         requestPollingIntervalMs: 2000,
-        websocketTimeoutMs: 15000
+        websocketTimeoutMs: 15000,
+        fetchChatMessages: true,
+        fetchGiftMessages: true
     });
 
     function addOrUpdateViewer(userData) {
@@ -98,7 +174,7 @@ async function connectToTikTok(username) {
             viewers.set(uniqueId, viewerInfo);
             
             const action = !existing ? '➕ NUEVO' : '🔄 ACTUALIZADO';
-            console.log(`${action} espectador: @${uniqueId} | Nombre: ${viewerInfo.nickname} | Avatar: ${avatarUrl ? 'SÍ ✅' : 'NO ❌'}`);
+            console.log(`${action} espectador: @${uniqueId} | ${viewerInfo.nickname} | Avatar: ${avatarUrl ? '✅' : '❌'}`);
             
             // Broadcast inmediato
             broadcastViewers();
@@ -113,8 +189,7 @@ async function connectToTikTok(username) {
         WebcastEvent.LIKE,
         WebcastEvent.FOLLOW,
         WebcastEvent.SHARE,
-        WebcastEvent.QUESTION_NEW,
-        WebcastEvent.POLL_UPDATE
+        WebcastEvent.QUESTION_NEW
     ];
     
     eventsToListen.forEach(event => {
@@ -127,8 +202,8 @@ async function connectToTikTok(username) {
 
     // Evento específico para datos iniciales del live
     tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
-        console.log(`📊 Datos iniciales recibidos: ${data.viewerCount || 0} espectadores`);
-        if (data.topViewers) {
+        console.log(`📊 Datos iniciales: ${data.viewerCount || 0} espectadores`);
+        if (data.topViewers && Array.isArray(data.topViewers)) {
             data.topViewers.forEach(viewer => {
                 addOrUpdateViewer(viewer);
             });
@@ -146,7 +221,7 @@ async function connectToTikTok(username) {
 
     // Manejar errores de conexión
     tiktokConnection.on('error', (error) => {
-        console.error(`⚠️ Error en conexión TikTok: ${error.message}`);
+        console.error(`⚠️ Error: ${error.message}`);
     });
 
     tiktokConnection.on('disconnected', () => {
@@ -155,25 +230,23 @@ async function connectToTikTok(username) {
 
     try {
         await tiktokConnection.connect();
-        console.log(`✅ Conectado exitosamente al live de @${username}`);
+        console.log(`✅ Conectado a @${username}`);
         
-        // Esperar a que lleguen los datos iniciales
+        // Esperar datos iniciales
         setTimeout(() => {
-            console.log(`📊 Estado final: ${viewers.size} espectadores registrados`);
+            console.log(`📊 Total: ${viewers.size} espectadores`);
             broadcastViewers();
         }, 5000);
         
     } catch (err) {
-        console.error(`❌ Error de conexión: ${err.message}`);
-        console.log('💡 Asegúrate de que:');
-        console.log('   1. El usuario está haciendo live en este momento');
-        console.log('   2. El nombre de usuario es correcto (sin @)');
-        console.log('   3. Tienes conexión a internet estable');
+        console.error(`❌ Error: ${err.message}`);
+        console.log('💡 Tips:');
+        console.log('   1. El usuario debe estar en vivo');
+        console.log('   2. Verifica el nombre de usuario');
         
-        // Intentar reconectar automáticamente después de 15 segundos
         setTimeout(() => {
             if (!tiktokConnection?.isConnected) {
-                console.log(`🔄 Reintentando conexión a @${username}...`);
+                console.log(`🔄 Reintentando...`);
                 connectToTikTok(username);
             }
         }, 15000);
@@ -181,61 +254,56 @@ async function connectToTikTok(username) {
 }
 
 wss.on('connection', (ws) => {
-    console.log('📱 Cliente conectado al WebSocket');
+    console.log('📱 Cliente conectado');
     clients.add(ws);
     
-    // Enviar lista actual inmediatamente
+    // Enviar lista actual
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
-        avatar: v.avatar
+        avatar: v.avatar ? `/proxy-image?url=${encodeURIComponent(v.avatar)}` : null
     }));
     
     ws.send(JSON.stringify({ type: 'viewers', data: viewerList }));
-    ws.send(JSON.stringify({ type: 'connection', status: 'connected', message: 'Conectado al servidor' }));
-    
-    ws.on('message', (message) => {
-        console.log('Mensaje recibido del cliente:', message.toString());
-    });
+    ws.send(JSON.stringify({ type: 'connection', status: 'connected' }));
     
     ws.on('close', () => {
         console.log('📱 Cliente desconectado');
         clients.delete(ws);
     });
-    
-    ws.on('error', (error) => {
-        console.error('Error en WebSocket:', error);
-    });
 });
 
 app.get('/connect/:username', async (req, res) => {
     const username = req.params.username;
-    console.log(`📡 Solicitud de conexión para: @${username}`);
+    console.log(`📡 Conectando a: @${username}`);
     await connectToTikTok(username);
-    res.json({ status: 'connected', username: username, timestamp: new Date().toISOString() });
+    res.json({ status: 'connected', username: username });
 });
 
 app.get('/status', (req, res) => {
+    const viewersWithAvatars = Array.from(viewers.values()).filter(v => v.avatar).length;
     res.json({ 
         connected: tiktokConnection?.isConnected || false, 
         viewers: viewers.size,
+        viewersWithAvatars: viewersWithAvatars,
         currentLive: currentUsername,
-        viewersList: Array.from(viewers.keys()).slice(0, 20),
         timestamp: new Date().toISOString()
     });
 });
 
-// Endpoint de prueba para agregar espectadores manualmente (para debugging)
+// Endpoint para agregar espectador de prueba con avatar
 app.get('/addtestviewer/:username', (req, res) => {
     const username = req.params.username;
     if (!viewers.has(username)) {
+        // Usar UI Avatars para generar avatares de prueba
+        const avatarUrl = `https://ui-avatars.com/api/?background=fe2c55&color=fff&bold=true&size=100&name=${encodeURIComponent(username)}`;
         viewers.set(username, {
             username: username,
             nickname: `Test_${username}`,
-            avatar: `https://picsum.photos/seed/${username}/100/100` // Imagen de prueba
+            avatar: avatarUrl
         });
         broadcastViewers();
-        res.json({ status: 'added', username, avatar: viewers.get(username).avatar });
+        res.json({ status: 'added', username, avatar: avatarUrl });
     } else {
         res.json({ status: 'exists', username });
     }
@@ -246,6 +314,6 @@ app.get('/', (req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📱 Abre esta URL en tu navegador\n`);
+    console.log(`\n🚀 Servidor: http://localhost:${PORT}`);
+    console.log(`📱 Proxy de imágenes: http://localhost:${PORT}/proxy-image?url=URL_AQUI\n`);
 });
