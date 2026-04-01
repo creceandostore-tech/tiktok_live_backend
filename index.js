@@ -16,116 +16,24 @@ let tiktokConnection = null;
 let viewers = new Map();
 let currentUsername = null;
 let isManualDisconnect = false;
-let reconnectAttempts = 0;
-let lastBroadcastTime = 0;
+let reconnectTimer = null;
 
-// Configuración optimizada para plan gratis
-const MAX_VIEWERS_LIMIT = 3000;
+const MAX_VIEWERS = 3000;
 const RECONNECT_DELAY = 3000;
-const BROADCAST_INTERVAL = 4000;
 
-// Cache de avatares (limitado para ahorrar memoria)
-const avatarCache = new Map();
-const MAX_CACHE_SIZE = 2000;
-
-// Función para obtener avatar de TikTok directamente (sin API externa)
-function getAvatarFromUser(user) {
+function getAvatarUrl(user) {
     try {
-        // TikTok a veces envía la foto en estos campos
         if (user?.avatarThumbnail?.url) return user.avatarThumbnail.url;
         if (user?.avatarMedium?.url) return user.avatarMedium.url;
         if (user?.avatarLarge?.url) return user.avatarLarge.url;
-        if (user?.profilePicture) return user.profilePicture;
-        
-        // Intentar construir URL manualmente
-        if (user?.uniqueId) {
-            // URL de avatar de TikTok por defecto
-            return `https://www.tiktok.com/@${user.uniqueId}/photo`;
-        }
         return null;
     } catch (e) {
         return null;
     }
 }
 
-// Función para obtener avatar desde la API pública de TikTok
-async function fetchAvatarFromTikTok(uniqueId) {
-    // Verificar cache primero
-    if (avatarCache.has(uniqueId)) {
-        return avatarCache.get(uniqueId);
-    }
-    
-    try {
-        // Usar API pública de TikTok (no requiere clave)
-        const response = await fetch(`https://www.tiktok.com/@${uniqueId}?lang=en`, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
-        
-        if (response.ok) {
-            const html = await response.text();
-            // Buscar la URL del avatar en el HTML
-            const avatarMatch = html.match(/avatar":\s*"([^"]+)"/i) || 
-                               html.match(/avatarUrl":"([^"]+)"/i) ||
-                               html.match(/https:\/\/p\d+\.cdn\.tiktok\.com\/[^"]+\.jpg/i);
-            
-            if (avatarMatch) {
-                let avatarUrl = avatarMatch[1] || avatarMatch[0];
-                avatarUrl = avatarUrl.replace(/\\u002f/g, '/').replace(/\\/g, '');
-                if (avatarUrl.startsWith('http')) {
-                    console.log(`✅ Avatar encontrado para @${uniqueId}`);
-                    avatarCache.set(uniqueId, avatarUrl);
-                    // Limitar cache
-                    if (avatarCache.size > MAX_CACHE_SIZE) {
-                        const firstKey = avatarCache.keys().next().value;
-                        avatarCache.delete(firstKey);
-                    }
-                    return avatarUrl;
-                }
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error(`Error fetching avatar for ${uniqueId}:`, error.message);
-        return null;
-    }
-}
-
-// Función principal para obtener avatar
-async function getBestAvatar(uniqueId, userData) {
-    // 1. Intentar del evento primero
-    const eventAvatar = getAvatarFromUser(userData);
-    if (eventAvatar && eventAvatar.includes('tiktok')) {
-        return eventAvatar;
-    }
-    
-    // 2. Buscar en cache
-    if (avatarCache.has(uniqueId)) {
-        return avatarCache.get(uniqueId);
-    }
-    
-    // 3. Buscar en segundo plano (no bloqueante)
-    fetchAvatarFromTikTok(uniqueId).then(avatar => {
-        if (avatar && viewers.has(uniqueId)) {
-            const viewer = viewers.get(uniqueId);
-            if (!viewer.avatar) {
-                viewer.avatar = avatar;
-                broadcastViewers();
-                console.log(`🖼️ Avatar actualizado para @${uniqueId}`);
-            }
-        }
-    });
-    
-    return null;
-}
-
 function broadcastViewers() {
-    const now = Date.now();
-    if (now - lastBroadcastTime < BROADCAST_INTERVAL) return;
-    lastBroadcastTime = now;
-    
-    const viewerList = Array.from(viewers.values()).slice(0, 300).map(v => ({
+    const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
         username: v.username,
         nickname: v.nickname,
         avatar: v.avatar
@@ -139,23 +47,13 @@ function broadcastViewers() {
     });
 }
 
-function broadcastCommand(command) {
-    const message = JSON.stringify({ type: 'command', command });
-    clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            try { client.send(message); } catch (e) {}
-        }
-    });
-}
-
-function broadcastStatus(connected, message = '', viewerCount = null) {
+function broadcastStatus(connected, message = '') {
     const statusMsg = JSON.stringify({ 
         type: 'connection_status', 
         connected, 
         message, 
         username: currentUsername,
-        viewerCount: viewerCount || viewers.size,
-        manualDisconnect: isManualDisconnect
+        viewerCount: viewers.size
     });
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -164,13 +62,20 @@ function broadcastStatus(connected, message = '', viewerCount = null) {
     });
 }
 
-function broadcastViewerCount(count) {
-    const countMsg = JSON.stringify({ type: 'viewer_count', count: count });
-    clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            try { client.send(countMsg); } catch (e) {}
+function scheduleReconnect() {
+    if (isManualDisconnect) return;
+    
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    
+    console.log(`🔄 Programando reconexión en ${RECONNECT_DELAY/1000}s...`);
+    broadcastStatus(false, `Reconnecting in ${RECONNECT_DELAY/1000}s...`);
+    
+    reconnectTimer = setTimeout(async () => {
+        if (!isManualDisconnect && currentUsername) {
+            console.log(`🔄 Reconectando a @${currentUsername}...`);
+            await connectToTikTok(currentUsername);
         }
-    });
+    }, RECONNECT_DELAY);
 }
 
 async function connectToTikTok(username) {
@@ -178,12 +83,13 @@ async function connectToTikTok(username) {
     
     if (!username) {
         console.error('❌ Username inválido');
-        broadcastStatus(false, 'Please enter a TikTok username');
         return false;
     }
     
-    currentUsername = username;
-    isManualDisconnect = false;
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
     
     if (tiktokConnection) {
         try { 
@@ -192,6 +98,8 @@ async function connectToTikTok(username) {
         tiktokConnection = null;
     }
     
+    currentUsername = username;
+    
     console.log(`🔌 Conectando a @${username}...`);
     broadcastStatus(false, `Connecting to @${username}...`);
     
@@ -199,8 +107,8 @@ async function connectToTikTok(username) {
         tiktokConnection = new TikTokLiveConnection(username, {
             enableExtendedGiftInfo: true,
             processInitialData: true,
-            requestPollingIntervalMs: 6000,
-            websocketTimeout: 60000,
+            requestPollingIntervalMs: 5000,
+            websocketTimeout: 90000,
             fetchChatMessages: true,
             fetchGiftMessages: true,
             fetchMemberMessages: true,
@@ -212,22 +120,17 @@ async function connectToTikTok(username) {
         await tiktokConnection.connect();
         
         console.log(`✅ Conectado a @${username}`);
-        broadcastStatus(true, `Connected to @${username}`, viewers.size);
-        reconnectAttempts = 0;
+        broadcastStatus(true, `Connected to @${username}`);
         
         return true;
         
     } catch (err) {
         console.error(`❌ Error: ${err.message}`);
-        broadcastStatus(false, `Connection failed: ${err.message}`);
+        broadcastStatus(false, `Error: ${err.message}`);
         tiktokConnection = null;
         
         if (!isManualDisconnect) {
-            setTimeout(() => {
-                if (!isManualDisconnect && currentUsername) {
-                    connectToTikTok(currentUsername);
-                }
-            }, RECONNECT_DELAY);
+            scheduleReconnect();
         }
         return false;
     }
@@ -236,33 +139,39 @@ async function connectToTikTok(username) {
 function setupEventHandlers(username) {
     if (!tiktokConnection) return;
     
-    function addOrUpdateViewer(userData) {
+    let broadcastTimeout = null;
+    let pendingUpdate = false;
+    
+    function scheduleBroadcast() {
+        if (broadcastTimeout) return;
+        broadcastTimeout = setTimeout(() => {
+            broadcastTimeout = null;
+            if (pendingUpdate) {
+                pendingUpdate = false;
+                broadcastViewers();
+            }
+        }, 2000);
+    }
+    
+    function addViewer(userData) {
         try {
             const uniqueId = userData?.uniqueId;
             if (!uniqueId || uniqueId === username) return;
             
-            if (viewers.size >= MAX_VIEWERS_LIMIT && !viewers.has(uniqueId)) return;
+            if (viewers.size >= MAX_VIEWERS && !viewers.has(uniqueId)) return;
             
             const existing = viewers.get(uniqueId);
-            const eventAvatar = getAvatarFromUser(userData);
             
             if (!existing) {
+                // Solo guardar nombre, sin foto inicialmente
                 viewers.set(uniqueId, {
                     username: uniqueId,
                     nickname: userData?.nickname || userData?.displayId || uniqueId,
-                    avatar: eventAvatar || null,
-                    joinedAt: Date.now()
+                    avatar: null
                 });
-                broadcastViewers();
-                broadcastViewerCount(viewers.size);
-                
-                // Buscar avatar en segundo plano si no tiene
-                if (!eventAvatar) {
-                    getBestAvatar(uniqueId, userData);
-                }
-            } else if (!existing.avatar && eventAvatar) {
-                existing.avatar = eventAvatar;
-                broadcastViewers();
+                console.log(`👥 +${uniqueId} (${viewers.size})`);
+                pendingUpdate = true;
+                scheduleBroadcast();
             }
         } catch (e) {
             console.error('Error:', e.message);
@@ -272,51 +181,55 @@ function setupEventHandlers(username) {
     function removeViewer(uniqueId) {
         if (uniqueId && viewers.has(uniqueId)) {
             viewers.delete(uniqueId);
-            console.log(`🚪 Salió: @${uniqueId} - Quedan: ${viewers.size}`);
-            broadcastViewers();
-            broadcastViewerCount(viewers.size);
+            console.log(`🚪 -${uniqueId} (${viewers.size})`);
+            pendingUpdate = true;
+            scheduleBroadcast();
+        }
+    }
+    
+    function updateAvatar(uniqueId, avatarUrl) {
+        if (uniqueId && viewers.has(uniqueId) && avatarUrl) {
+            const viewer = viewers.get(uniqueId);
+            if (!viewer.avatar) {
+                viewer.avatar = avatarUrl;
+                console.log(`🖼️ Foto para @${uniqueId}`);
+                pendingUpdate = true;
+                scheduleBroadcast();
+            }
         }
     }
     
     tiktokConnection.on(WebcastEvent.CONNECTED, () => {
-        console.log(`✅ Conectado a @${username}`);
-        broadcastStatus(true, `Connected to @${username}`, viewers.size);
+        console.log(`✅ Conexión establecida`);
+        broadcastStatus(true, `Connected`);
     });
     
     tiktokConnection.on(WebcastEvent.DISCONNECTED, (reason) => {
-        console.log(`🔌 Desconectado: ${reason}`);
-        broadcastStatus(false, `Disconnected: ${reason || 'Connection lost'}`, viewers.size);
+        console.log(`🔌 Desconectado: ${reason || 'No reason'}`);
+        broadcastStatus(false, `Disconnected: ${reason || 'Connection lost'}`);
         
         if (!isManualDisconnect && currentUsername) {
-            setTimeout(() => {
-                if (!isManualDisconnect && currentUsername) {
-                    connectToTikTok(currentUsername);
-                }
-            }, RECONNECT_DELAY);
+            scheduleReconnect();
         }
     });
     
     tiktokConnection.on(WebcastEvent.ERROR, (error) => {
         console.error(`❌ Error: ${error.message}`);
-        broadcastStatus(false, `Error: ${error.message}`, viewers.size);
+        broadcastStatus(false, `Error: ${error.message}`);
     });
     
     tiktokConnection.on(WebcastEvent.ROOM_USER_SEGMENT, (data) => {
         const count = data?.viewerCount || viewers.size;
         console.log(`📊 Espectadores: ${count}`);
-        broadcastStatus(true, `Live: ${count} viewers`, count);
-        broadcastViewerCount(count);
+        broadcastStatus(true, `Live: ${count} viewers`);
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER, (data) => {
-        if (data?.user) addOrUpdateViewer(data.user);
+        if (data?.user) addViewer(data.user);
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        if (data?.user) {
-            console.log(`➕ Entró: @${data.user.uniqueId}`);
-            addOrUpdateViewer(data.user);
-        }
+        if (data?.user) addViewer(data.user);
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
@@ -324,34 +237,25 @@ function setupEventHandlers(username) {
         if (id) removeViewer(id);
     });
     
-    // Evento GIFT - Prioridad para obtener avatar
+    // SOLO QUIENES ENVÍAN REGALOS OBTIENEN FOTO
     tiktokConnection.on(WebcastEvent.GIFT, (data) => {
         if (data?.user) {
             const userId = data.user.uniqueId;
             console.log(`🎁 REGALO de @${userId}: ${data.giftName}`);
             
-            // Prioridad máxima: obtener avatar inmediatamente
-            (async () => {
-                const avatar = await getBestAvatar(userId, data.user);
-                if (avatar && viewers.has(userId)) {
-                    viewers.get(userId).avatar = avatar;
-                    broadcastViewers();
-                    console.log(`🖼️ Foto obtenida para @${userId} (envió regalo)`);
-                } else if (!viewers.has(userId)) {
-                    addOrUpdateViewer(data.user);
-                }
-            })();
+            // Obtener foto del evento si viene
+            const avatar = getAvatarUrl(data.user);
+            if (avatar) {
+                updateAvatar(userId, avatar);
+            } else {
+                // Si no tiene foto en el evento, asegurar que está en la lista
+                addViewer(data.user);
+            }
         }
     });
     
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        if (data?.user) addOrUpdateViewer(data.user);
-        
-        const comment = data?.comment?.trim() || '';
-        if (comment.toLowerCase().startsWith('!send')) {
-            console.log(`📨 Comando: ${comment}`);
-            broadcastCommand(comment);
-        }
+        if (data?.user) addViewer(data.user);
     });
 }
 
@@ -366,7 +270,7 @@ wss.on('connection', (ws) => {
         viewerCount: viewers.size
     }));
     
-    const viewerList = Array.from(viewers.values()).slice(0, 300).map(v => ({
+    const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
         username: v.username,
         nickname: v.nickname,
         avatar: v.avatar
@@ -395,8 +299,17 @@ app.get('/disconnect', async (req, res) => {
     try {
         console.log('🔌 Desconexión manual');
         isManualDisconnect = true;
-        if (tiktokConnection) await tiktokConnection.disconnect();
-        tiktokConnection = null;
+        
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+        
+        if (tiktokConnection) {
+            await tiktokConnection.disconnect();
+            tiktokConnection = null;
+        }
+        
         viewers.clear();
         currentUsername = null;
         broadcastViewers();
@@ -411,7 +324,8 @@ app.get('/status', (req, res) => {
     res.json({ 
         connected: tiktokConnection?.isConnected || false,
         username: currentUsername,
-        viewers: viewers.size
+        viewers: viewers.size,
+        maxViewers: MAX_VIEWERS
     });
 });
 
@@ -421,5 +335,8 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`🚀 Servidor en puerto ${PORT}`);
-    console.log(`⚙️ Modo gratuito - ${MAX_VIEWERS_LIMIT} espectadores máximo`);
+    console.log(`⚙️ Configuración:`);
+    console.log(`   📊 Máximo: ${MAX_VIEWERS} espectadores`);
+    console.log(`   🎁 Fotos solo para quienes envían regalos`);
+    console.log(`   🔄 Reconexión automática cada ${RECONNECT_DELAY/1000}s`);
 });
