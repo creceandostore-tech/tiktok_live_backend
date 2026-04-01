@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 const path = require('path');
+const fetch = require('node-fetch');
 
 const app = express();
 const server = http.createServer(app);
@@ -10,6 +11,9 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Tu API Key de TikTool
+const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
 
 const clients = new Set();
 let tiktokConnection = null;
@@ -24,7 +28,77 @@ const RECONNECT_DELAY = 5000;
 const HEARTBEAT_INTERVAL = 20000;
 const BROADCAST_INTERVAL = 3000;
 
-function getAvatarUrl(user) {
+// Cache de avatares para no llamar a la API repetidamente
+const avatarCache = new Map();
+const pendingRequests = new Map();
+
+// Función para obtener avatar de TikTool API
+async function fetchAvatarFromTikTool(uniqueId) {
+    // Verificar cache
+    if (avatarCache.has(uniqueId)) {
+        return avatarCache.get(uniqueId);
+    }
+    
+    // Evitar solicitudes duplicadas
+    if (pendingRequests.has(uniqueId)) {
+        return pendingRequests.get(uniqueId);
+    }
+    
+    const promise = (async () => {
+        try {
+            console.log(`🔍 Buscando avatar para @${uniqueId} en TikTool...`);
+            
+            // Usar la API de TikTool
+            const response = await fetch(`https://api.tik.tools/user/${uniqueId}`, {
+                headers: {
+                    'Authorization': `Bearer ${TIKTOOL_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                // Buscar la URL del avatar en diferentes campos
+                const avatarUrl = data?.user?.avatar || 
+                                 data?.avatar || 
+                                 data?.profilePicture || 
+                                 data?.user?.profilePicture ||
+                                 data?.user?.avatarThumbnail ||
+                                 data?.avatarThumbnail ||
+                                 null;
+                
+                if (avatarUrl && avatarUrl.startsWith('http')) {
+                    console.log(`✅ Avatar encontrado para @${uniqueId}: ${avatarUrl.substring(0, 60)}...`);
+                    avatarCache.set(uniqueId, avatarUrl);
+                    // Limitar tamaño del cache
+                    if (avatarCache.size > 5000) {
+                        const firstKey = avatarCache.keys().next().value;
+                        avatarCache.delete(firstKey);
+                    }
+                    return avatarUrl;
+                } else {
+                    console.log(`⚠️ No se encontró avatar para @${uniqueId} en TikTool`);
+                    avatarCache.set(uniqueId, null);
+                    return null;
+                }
+            } else {
+                console.log(`❌ Error ${response.status} al buscar avatar para @${uniqueId}`);
+                return null;
+            }
+        } catch (error) {
+            console.error(`❌ Error fetching avatar for ${uniqueId}:`, error.message);
+            return null;
+        } finally {
+            pendingRequests.delete(uniqueId);
+        }
+    })();
+    
+    pendingRequests.set(uniqueId, promise);
+    return promise;
+}
+
+// Función para obtener avatar de los datos del evento (si viene)
+function getAvatarFromEvent(user) {
     try {
         if (user?.avatarThumbnail?.url) return user.avatarThumbnail.url;
         if (user?.avatarMedium?.url) return user.avatarMedium.url;
@@ -34,6 +108,33 @@ function getAvatarUrl(user) {
     } catch (e) {
         return null;
     }
+}
+
+// Función principal para obtener el mejor avatar disponible
+async function getBestAvatar(uniqueId, userData) {
+    // 1. Intentar del evento primero (más rápido)
+    const eventAvatar = getAvatarFromEvent(userData);
+    if (eventAvatar && eventAvatar.startsWith('http')) {
+        console.log(`📸 Avatar del evento para @${uniqueId}`);
+        return eventAvatar;
+    }
+    
+    // 2. Buscar en cache
+    if (avatarCache.has(uniqueId)) {
+        const cached = avatarCache.get(uniqueId);
+        if (cached) {
+            console.log(`💾 Avatar en cache para @${uniqueId}`);
+            return cached;
+        }
+    }
+    
+    // 3. Buscar en API de TikTool
+    const apiAvatar = await fetchAvatarFromTikTool(uniqueId);
+    if (apiAvatar) {
+        return apiAvatar;
+    }
+    
+    return null;
 }
 
 function broadcastViewers() {
@@ -194,25 +295,37 @@ function setupEventHandlers(username) {
     let lastBroadcastTime = 0;
     let pendingBroadcast = null;
     
-    function addOrUpdateViewer(userData) {
+    async function addOrUpdateViewer(userData) {
         try {
             const uniqueId = userData?.uniqueId;
             if (!uniqueId || uniqueId === username) return;
             
             if (viewers.size >= MAX_VIEWERS_LIMIT && !viewers.has(uniqueId)) return;
             
-            const avatarUrl = getAvatarUrl(userData);
             const existing = viewers.get(uniqueId);
             
-            if (!existing || (existing.avatar === null && avatarUrl)) {
+            // Si ya existe y tiene avatar, no hacer nada
+            if (existing && existing.avatar) {
+                return;
+            }
+            
+            // Obtener avatar (prioridad para quien envía regalos)
+            const avatarUrl = await getBestAvatar(uniqueId, userData);
+            
+            if (!existing) {
                 viewers.set(uniqueId, {
                     username: uniqueId,
                     nickname: userData?.nickname || userData?.displayId || uniqueId,
                     avatar: avatarUrl,
                     joinedAt: Date.now()
                 });
+                console.log(`👥 Nuevo espectador: @${uniqueId} ${avatarUrl ? '📸 con foto' : '📷 sin foto'}`);
                 throttledBroadcastViewers();
                 broadcastViewerCount(viewers.size);
+            } else if (!existing.avatar && avatarUrl) {
+                existing.avatar = avatarUrl;
+                console.log(`🖼️ Avatar actualizado para @${uniqueId}`);
+                throttledBroadcastViewers();
             }
         } catch (e) {
             console.error('Error al procesar usuario:', e.message);
@@ -297,15 +410,44 @@ function setupEventHandlers(username) {
         }
     });
     
+    // EVENTO DE GIFT - PRIORIDAD MÁXIMA PARA OBTENER FOTO
     tiktokConnection.on(WebcastEvent.GIFT, (data) => {
         if (data?.user) {
-            console.log(`🎁 REGALO de @${data.user.uniqueId}: ${data.giftName || 'gift'} x${data.repeatCount || 1}`);
-            addOrUpdateViewer(data.user);
+            const userId = data.user.uniqueId;
+            console.log(`🎁 REGALO de @${userId}: ${data.giftName || 'gift'} x${data.repeatCount || 1}`);
+            
+            // Prioridad máxima: obtener avatar inmediatamente para quien envía regalos
+            (async () => {
+                const avatar = await getBestAvatar(userId, data.user);
+                if (avatar) {
+                    const existing = viewers.get(userId);
+                    if (existing) {
+                        existing.avatar = avatar;
+                        console.log(`🖼️ Foto de perfil obtenida para @${userId} (envió regalo)`);
+                        throttledBroadcastViewers();
+                    } else {
+                        // Si no existe, agregar con avatar
+                        viewers.set(userId, {
+                            username: userId,
+                            nickname: data.user.nickname || userId,
+                            avatar: avatar,
+                            joinedAt: Date.now()
+                        });
+                        throttledBroadcastViewers();
+                        broadcastViewerCount(viewers.size);
+                    }
+                } else {
+                    // Si no hay avatar, agregar sin foto
+                    addOrUpdateViewer(data.user);
+                }
+            })();
         }
     });
     
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        if (data?.user) addOrUpdateViewer(data.user);
+        if (data?.user) {
+            addOrUpdateViewer(data.user);
+        }
         
         const comment = data?.comment?.trim() || '';
         if (comment.toLowerCase().startsWith('!send')) {
@@ -414,7 +556,7 @@ server.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`⚙️ Configuración:`);
     console.log(`   📊 Máximo espectadores: ${MAX_VIEWERS_LIMIT}`);
+    console.log(`   🖼️ Fotos de perfil vía TikTool API`);
+    console.log(`   🎁 Prioridad máxima para quienes envían regalos`);
     console.log(`   🔄 Reconexión automática cada ${RECONNECT_DELAY/1000}s`);
-    console.log(`   💓 Heartbeat cada ${HEARTBEAT_INTERVAL/1000}s`);
-    console.log(`   📝 Para conectar: escribe el username de TikTok en el input y haz clic en Connect`);
 });
