@@ -23,15 +23,9 @@
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
-    .header {
-      background: linear-gradient(135deg, #fe2c55, #ff4f7a);
-      color: white;
+    .content {
       padding: 20px;
-      text-align: center;
     }
-    .header h1 { font-size: 24px; margin-bottom: 5px; }
-    .header p { font-size: 12px; opacity: 0.9; }
-    .content { padding: 20px; }
     .card {
       background: #f8f8fa;
       border-radius: 16px;
@@ -108,11 +102,11 @@
     }
     .coin-icon {
       display: inline-block;
-      width: 20px;
-      height: 20px;
-      background: radial-gradient(circle at 30% 30%, #ffd966, #ffaa33);
-      border-radius: 50%;
-      box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2);
+      width: 22px;
+      height: 22px;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23fe2c55"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="12" cy="12" r="5" fill="%23ffd700"/></svg>');
+      background-size: contain;
+      background-repeat: no-repeat;
     }
     .row { display: flex; gap: 10px; margin-bottom: 12px; }
     .input {
@@ -208,16 +202,134 @@
       color: #fe2c55;
       font-weight: 600;
     }
+
+    /* Modal de confirmación */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 24px;
+      max-width: 350px;
+      width: 90%;
+      padding: 24px;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .modal-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-confirm { background: #fe2c55; color: white; }
+    .btn-cancel { background: #f0f0f0; color: #666; }
+
+    /* Comprobante */
+    .receipt {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+    }
+    .receipt-content {
+      background: white;
+      border-radius: 24px;
+      max-width: 350px;
+      width: 90%;
+      padding: 24px;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .receipt-icon {
+      width: 60px;
+      height: 60px;
+      background: #28a745;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px;
+      color: white;
+    }
+    .receipt-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: #28a745;
+    }
+    .receipt-details {
+      background: #f8f8fa;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      margin: 16px 0;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-label { color: #666; font-size: 13px; }
+    .receipt-value { font-weight: 700; color: #333; }
+    .receipt-total {
+      background: #fe2c55;
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      font-weight: 800;
+    }
+    .btn-close {
+      width: 100%;
+      padding: 12px;
+      background: #fe2c55;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      margin-top: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="header">
-    <h1>✨ Live Credits ✨</h1>
-    <p>Transferencia de créditos en vivo | TikTok Live Gifts</p>
-  </div>
   <div class="content">
-    <!-- Perfil con verificado y monedas -->
+    <!-- Perfil con verificado -->
     <div class="card profile-card">
       <div class="profile-info">
         <div class="profile-avatar">LC</div>
@@ -230,19 +342,19 @@
         </div>
       </div>
       <div class="balance">
-        <span class="balance-label">💰 Saldo disponible</span>
+        <span class="balance-label">Saldo disponible</span>
         <span class="balance-amount">
           <span class="coin-icon"></span>
-          78,000,000
+          <span id="balanceAmount">78,000,000</span>
         </span>
       </div>
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">🎁 Enviar Gift</div>
+      <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
       <div class="row">
         <input id="usernameInput" class="input" placeholder="Usuario de TikTok" />
-        <button id="searchUserBtn" class="btn btn-pink">🔍 Buscar</button>
+        <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
       <div class="hit">
         <div class="hit-pic" id="hitPic"></div>
@@ -254,57 +366,80 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">💎 Recargar Créditos</div>
-      <div style="font-size:11px; color:#fe2c55; margin-bottom:8px">✨ Precios especiales ✨</div>
+      <div style="font-weight:600; margin-bottom:10px">Recargar Créditos</div>
       <div class="grid" id="packsGrid"></div>
-      <div class="custom-box" id="openCustom">✨ Cantidad personalizada ✨</div>
+      <div class="custom-box" id="openCustom">Cantidad personalizada</div>
     </div>
 
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-        <span>📱 TikTok Live</span>
+        <span>TikTok Live</span>
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
-        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo (ej: elrubius)" />
+        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo" />
       </div>
       <div class="button-group">
-        <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
-        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
+        <button id="connectTikTokBtn" class="btn btn-pink btn-small">Conectar Live</button>
+        <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">Desconectar</button>
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">💬 Comandos de Chat</div>
+      <div style="font-weight:600; margin-bottom:10px">Comandos de Chat</div>
       <div class="row">
         <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
-        <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
+        <button id="sendChatCommand" class="btn btn-pink btn-small">Enviar</button>
       </div>
       <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
     </div>
   </div>
 </div>
 
+<!-- Modal de confirmación -->
+<div id="confirmModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:16px">Confirmar Envío</h3>
+    <p id="confirmMessage" style="margin-bottom:20px"></p>
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="cancelBtn">Cancelar</button>
+      <button class="btn-confirm" id="confirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comprobante de envío -->
+<div id="receiptModal" class="receipt">
+  <div class="receipt-content">
+    <div class="receipt-icon">✓</div>
+    <div class="receipt-title">¡Envío Exitoso!</div>
+    <div class="receipt-details" id="receiptDetails"></div>
+    <button class="btn-close" id="closeReceiptBtn">Cerrar</button>
+  </div>
+</div>
+
 <script>
   let balance = 78000000;
   let selectedCoins = 350;
-  let customDigits = '0';
+  let selectedUsd = 3.65;
   let currentViewersMap = new Map();
   let ws = null;
+  let pendingTransaction = null;
 
   const packs = [
-    {coins:70, usd:0.74, note:"🔥 Popular"},
-    {coins:350, usd:3.65, note:"⭐ Starter"},
-    {coins:700, usd:7.40, note:"💎 Best value"},
-    {coins:1400, usd:14.80, note:"🚀 Extended"},
-    {coins:3500, usd:37.00, note:"👑 Creator"},
-    {coins:7000, usd:74.00, note:"💪 Premium"}
+    {coins:70, usd:0.74, note:"Popular"},
+    {coins:350, usd:3.65, note:"Starter"},
+    {coins:700, usd:7.40, note:"Best value"},
+    {coins:1400, usd:14.80, note:"Extended"},
+    {coins:3500, usd:37.00, note:"Creator"},
+    {coins:7000, usd:74.00, note:"Premium"}
   ];
 
   function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
   function fmtUSD(n) { return 'US$' + Number(n).toFixed(2); }
   function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
+  function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
 
   function renderPacks() {
     const grid = document.getElementById('packsGrid');
@@ -324,7 +459,7 @@
         document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedCoins = p.coins;
-        alert(`✨ Seleccionaste ${fmtCoins(p.coins)} créditos - ${fmtUSD(p.usd)} ✨`);
+        selectedUsd = p.usd;
       };
       grid.appendChild(btn);
     });
@@ -363,18 +498,110 @@
     while(log.children.length > 20) log.removeChild(log.firstChild);
   }
 
+  function showReceipt(username, amount, coins, fee, total) {
+    const receiptDetails = document.getElementById('receiptDetails');
+    const now = new Date();
+    const transactionId = 'TXN' + Date.now() + Math.floor(Math.random() * 1000);
+    
+    receiptDetails.innerHTML = `
+      <div class="receipt-row">
+        <span class="receipt-label">Usuario destino</span>
+        <span class="receipt-value">@${username}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Cantidad de créditos</span>
+        <span class="receipt-value">${fmtCoins(coins)} créditos</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Valor</span>
+        <span class="receipt-value">${fmtUSD(amount)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Comisión (6%)</span>
+        <span class="receipt-value">${fmtUSD(fee)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Total enviado</span>
+        <span class="receipt-value">${fmtUSD(total)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Fecha</span>
+        <span class="receipt-value">${now.toLocaleString()}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">ID Transacción</span>
+        <span class="receipt-value">${transactionId}</span>
+      </div>
+      <div class="receipt-total">
+        Envío completado ✓
+      </div>
+    `;
+    
+    document.getElementById('receiptModal').style.display = 'flex';
+  }
+
+  function processSend() {
+    const username = currentUser();
+    if (!username) {
+      addChatLog('❌ Ingresa un username para enviar', true);
+      return false;
+    }
+    if (selectedCoins > balance) {
+      addChatLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} créditos`, true);
+      return false;
+    }
+    
+    const fee = selectedUsd * 0.06;
+    const total = selectedUsd + fee;
+    
+    pendingTransaction = {
+      username: username,
+      amount: selectedUsd,
+      coins: selectedCoins,
+      fee: fee,
+      total: total
+    };
+    
+    document.getElementById('confirmMessage').innerHTML = `
+      ¿Enviar ${fmtCoins(selectedCoins)} créditos a @${username}?<br>
+      <span style="font-size:12px; color:#666">Valor: ${fmtUSD(selectedUsd)} + comisión ${fmtUSD(fee)}</span>
+    `;
+    document.getElementById('confirmModal').style.display = 'flex';
+    return true;
+  }
+
+  function confirmSend() {
+    if (pendingTransaction) {
+      balance -= pendingTransaction.coins;
+      updateBalanceUI();
+      
+      showReceipt(
+        pendingTransaction.username,
+        pendingTransaction.amount,
+        pendingTransaction.coins,
+        pendingTransaction.fee,
+        pendingTransaction.total
+      );
+      
+      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} créditos a @${pendingTransaction.username}`);
+      
+      pendingTransaction = null;
+    }
+    document.getElementById('confirmModal').style.display = 'none';
+  }
+
   document.getElementById('searchUserBtn').onclick = async () => {
     const username = currentUser();
     if (!username) { alert('Ingresa un username de TikTok'); return; }
     const btn = document.getElementById('searchUserBtn');
     const original = btn.textContent;
-    btn.textContent = '🔍 Buscando...';
+    btn.textContent = 'Buscando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/search/${username}`);
       const data = await res.json();
       if (data.avatar) {
-        addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
+        addChatLog(`✅ @${username} - Foto de perfil encontrada`);
         if (currentViewersMap.has(username)) {
           currentViewersMap.get(username).avatar = data.avatar;
         } else {
@@ -437,26 +664,26 @@
     const username = document.getElementById('tiktokUsername').value.trim();
     if (!username) { alert('Ingresa el username de TikTok que está en vivo'); return; }
     const btn = document.getElementById('connectTikTokBtn');
-    btn.textContent = '🔴 Conectando...';
+    btn.textContent = 'Conectando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username} 🎥`);
+      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username}`);
       else addChatLog(`❌ Error: ${data.error} - ¿El usuario está en vivo?`, true);
     } catch(e) { addChatLog(`❌ Error de conexión: ${e.message}`, true); }
-    finally { btn.textContent = '🔴 Conectar Live'; btn.disabled = false; }
+    finally { btn.textContent = 'Conectar Live'; btn.disabled = false; }
   };
 
   document.getElementById('disconnectTikTokBtn').onclick = async () => {
     const btn = document.getElementById('disconnectTikTokBtn');
-    btn.textContent = '⛔ Desconectando...';
+    btn.textContent = 'Desconectando...';
     btn.disabled = true;
     try {
       await fetch('/disconnect');
       addChatLog('✅ Desconectado manualmente del live');
     } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
-    finally { btn.textContent = '⛔ Desconectar'; btn.disabled = false; }
+    finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
   };
 
   document.getElementById('sendChatCommand').onclick = () => {
@@ -465,18 +692,37 @@
   };
 
   document.getElementById('openCustom').onclick = () => {
-    const amount = prompt('💎 Ingresa la cantidad de créditos personalizada:', '1000');
-    if (amount && !isNaN(amount)) {
+    const amount = prompt('Ingresa la cantidad de créditos personalizada:', '1000');
+    if (amount && !isNaN(amount) && parseInt(amount) > 0) {
       selectedCoins = parseInt(amount);
+      selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
       document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-      alert(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos ✨`);
+      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos`);
     }
+  };
+
+  // Botón de enviar en el hit
+  const sendButton = document.createElement('button');
+  sendButton.textContent = 'Enviar Gift';
+  sendButton.className = 'btn btn-pink btn-small';
+  sendButton.style.marginTop = '12px';
+  sendButton.style.width = '100%';
+  sendButton.onclick = processSend;
+  document.querySelector('.hit').appendChild(sendButton);
+
+  document.getElementById('confirmBtn').onclick = confirmSend;
+  document.getElementById('cancelBtn').onclick = () => {
+    document.getElementById('confirmModal').style.display = 'none';
+    pendingTransaction = null;
+  };
+  document.getElementById('closeReceiptBtn').onclick = () => {
+    document.getElementById('receiptModal').style.display = 'none';
   };
 
   renderPacks();
   initWebSocket();
   updateUserViews();
-  document.getElementById('balanceText')?.remove();
+  updateBalanceUI();
 </script>
 </body>
 </html>
