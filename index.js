@@ -13,9 +13,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const clients = new Set();
 let tiktokConnection = null;
-let viewers = new Map(); // key: uniqueId, value: { username, nickname, avatar }
+let viewers = new Map();
+let currentUsername = null;
 
-// Función para enviar lista de espectadores a todos los clientes
 function broadcastViewers() {
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
@@ -24,7 +24,7 @@ function broadcastViewers() {
     }));
     
     const message = JSON.stringify({ type: 'viewers', data: viewerList });
-    console.log(`📢 Enviando lista de espectadores a ${clients.size} clientes:`, viewerList.map(v => v.username));
+    console.log(`📢 Enviando lista a ${clients.size} clientes:`, viewerList.slice(0, 5));
     
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -40,10 +40,29 @@ function broadcastCommand(command) {
     });
 }
 
+// Función para obtener el mejor avatar disponible
+function getBestAvatar(userData) {
+    // Prioridad de avatares
+    if (userData.avatarLarge) return userData.avatarLarge;
+    if (userData.avatarMedium) return userData.avatarMedium;
+    if (userData.avatarThumbnail) return userData.avatarThumbnail;
+    if (userData.profilePicture) return userData.profilePicture;
+    if (userData.avatar) return userData.avatar;
+    return null;
+}
+
 async function connectToTikTok(username) {
+    if (!username) {
+        console.error('❌ Nombre de usuario no válido');
+        return;
+    }
+    
+    currentUsername = username;
+    
     if (tiktokConnection) {
         try { 
             await tiktokConnection.disconnect(); 
+            console.log('Desconectando conexión anterior...');
         } catch(e) {
             console.log('Error al desconectar:', e.message);
         }
@@ -51,113 +70,121 @@ async function connectToTikTok(username) {
     
     viewers.clear();
     
+    console.log(`🔌 Conectando a TikTok Live: @${username}`);
+    
     tiktokConnection = new TikTokLiveConnection(username, {
         enableExtendedGiftInfo: true,
-        processInitialData: true
+        processInitialData: true,
+        requestPollingIntervalMs: 2000,
+        websocketTimeoutMs: 15000
     });
 
-    // Helper para añadir o actualizar espectador con sus datos completos
     function addOrUpdateViewer(userData) {
-        const uniqueId = userData.uniqueId;
-        if (!uniqueId) return;
+        if (!userData || !userData.uniqueId) return;
         
-        // Extraer la mejor URL de avatar disponible
-        let avatarUrl = null;
-        if (userData.avatarThumbnail) avatarUrl = userData.avatarThumbnail;
-        if (userData.avatarMedium) avatarUrl = userData.avatarMedium;
-        if (userData.avatarLarge) avatarUrl = userData.avatarLarge;
+        const uniqueId = userData.uniqueId;
+        const avatarUrl = getBestAvatar(userData);
         
         const existing = viewers.get(uniqueId);
         
-        // Actualizar si no existe o si no tenía avatar y ahora tenemos uno
+        // Siempre actualizar si encontramos un avatar que no teníamos
         if (!existing || (existing.avatar === null && avatarUrl)) {
-            viewers.set(uniqueId, {
+            const viewerInfo = {
                 username: uniqueId,
-                nickname: userData.nickname || uniqueId,
+                nickname: userData.nickname || userData.uniqueName || uniqueId,
                 avatar: avatarUrl
-            });
+            };
             
-            const action = existing ? 'actualizado' : 'nuevo';
-            console.log(`👥 Espectador ${action}: @${uniqueId} (${userData.nickname || ''}) ${avatarUrl ? 'con avatar ✓' : 'sin avatar'}`);
+            viewers.set(uniqueId, viewerInfo);
+            
+            const action = !existing ? '➕ NUEVO' : '🔄 ACTUALIZADO';
+            console.log(`${action} espectador: @${uniqueId} | Nombre: ${viewerInfo.nickname} | Avatar: ${avatarUrl ? 'SÍ ✅' : 'NO ❌'}`);
+            
+            // Broadcast inmediato
             broadcastViewers();
         }
     }
 
-    // Evento de unión al live
-    tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        console.log(`🎉 Nuevo espectador se unió: @${data.user.uniqueId}`);
-        addOrUpdateViewer(data.user);
+    // Escuchar todos los eventos posibles que pueden dar información de usuarios
+    const eventsToListen = [
+        WebcastEvent.MEMBER_JOIN,
+        WebcastEvent.CHAT,
+        WebcastEvent.GIFT,
+        WebcastEvent.LIKE,
+        WebcastEvent.FOLLOW,
+        WebcastEvent.SHARE,
+        WebcastEvent.QUESTION_NEW,
+        WebcastEvent.POLL_UPDATE
+    ];
+    
+    eventsToListen.forEach(event => {
+        tiktokConnection.on(event, (data) => {
+            if (data && data.user) {
+                addOrUpdateViewer(data.user);
+            }
+        });
     });
 
-    // Evento de salida
-    tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
-        const uniqueId = data.user.uniqueId;
-        if (uniqueId && viewers.has(uniqueId)) {
-            viewers.delete(uniqueId);
-            console.log(`🚪 Espectador salió: @${uniqueId}`);
-            broadcastViewers();
+    // Evento específico para datos iniciales del live
+    tiktokConnection.on(WebcastEvent.ROOM_USER, (data) => {
+        console.log(`📊 Datos iniciales recibidos: ${data.viewerCount || 0} espectadores`);
+        if (data.topViewers) {
+            data.topViewers.forEach(viewer => {
+                addOrUpdateViewer(viewer);
+            });
         }
     });
 
-    // Evento de chat
+    // Manejar comandos de chat
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        addOrUpdateViewer(data.user);
-
-        const comment = data.comment.trim();
+        const comment = data.comment ? data.comment.trim() : '';
         if (comment.toLowerCase().startsWith('!send')) {
+            console.log(`🎮 Comando detectado: ${comment}`);
             broadcastCommand(comment);
         }
     });
 
-    // Evento de regalo (también puede proporcionar información del usuario)
-    tiktokConnection.on(WebcastEvent.GIFT, (data) => {
-        addOrUpdateViewer(data.user);
-        console.log(`🎁 Regalo de @${data.user.uniqueId}: ${data.gift.name}`);
+    // Manejar errores de conexión
+    tiktokConnection.on('error', (error) => {
+        console.error(`⚠️ Error en conexión TikTok: ${error.message}`);
     });
 
-    // Evento de like
-    tiktokConnection.on(WebcastEvent.LIKE, (data) => {
-        addOrUpdateViewer(data.user);
-    });
-
-    // Evento de seguimiento
-    tiktokConnection.on(WebcastEvent.FOLLOW, (data) => {
-        addOrUpdateViewer(data.user);
-        console.log(`❤️ Nuevo seguidor: @${data.user.uniqueId}`);
-    });
-
-    // Evento de compartir
-    tiktokConnection.on(WebcastEvent.SHARE, (data) => {
-        addOrUpdateViewer(data.user);
+    tiktokConnection.on('disconnected', () => {
+        console.log('🔴 Desconectado de TikTok Live');
     });
 
     try {
         await tiktokConnection.connect();
-        console.log(`✅ Conectado al live de @${username}`);
+        console.log(`✅ Conectado exitosamente al live de @${username}`);
         
-        // Esperar un momento para que se procesen los datos iniciales
+        // Esperar a que lleguen los datos iniciales
         setTimeout(() => {
+            console.log(`📊 Estado final: ${viewers.size} espectadores registrados`);
             broadcastViewers();
-            console.log(`📊 Estado actual: ${viewers.size} espectadores registrados`);
-        }, 3000);
+        }, 5000);
         
     } catch (err) {
         console.error(`❌ Error de conexión: ${err.message}`);
-        // Intentar reconectar después de 10 segundos en caso de error
+        console.log('💡 Asegúrate de que:');
+        console.log('   1. El usuario está haciendo live en este momento');
+        console.log('   2. El nombre de usuario es correcto (sin @)');
+        console.log('   3. Tienes conexión a internet estable');
+        
+        // Intentar reconectar automáticamente después de 15 segundos
         setTimeout(() => {
             if (!tiktokConnection?.isConnected) {
-                console.log(`🔄 Intentando reconectar a @${username}...`);
+                console.log(`🔄 Reintentando conexión a @${username}...`);
                 connectToTikTok(username);
             }
-        }, 10000);
+        }, 15000);
     }
 }
 
 wss.on('connection', (ws) => {
-    console.log('📱 Cliente frontend conectado');
+    console.log('📱 Cliente conectado al WebSocket');
     clients.add(ws);
     
-    // Enviar la lista actual inmediatamente al nuevo cliente
+    // Enviar lista actual inmediatamente
     const viewerList = Array.from(viewers.values()).map(v => ({
         username: v.username,
         nickname: v.nickname,
@@ -165,12 +192,14 @@ wss.on('connection', (ws) => {
     }));
     
     ws.send(JSON.stringify({ type: 'viewers', data: viewerList }));
+    ws.send(JSON.stringify({ type: 'connection', status: 'connected', message: 'Conectado al servidor' }));
     
-    // Enviar mensaje de confirmación de conexión
-    ws.send(JSON.stringify({ type: 'connection', status: 'connected' }));
+    ws.on('message', (message) => {
+        console.log('Mensaje recibido del cliente:', message.toString());
+    });
     
     ws.on('close', () => {
-        console.log('📱 Cliente frontend desconectado');
+        console.log('📱 Cliente desconectado');
         clients.delete(ws);
     });
     
@@ -180,32 +209,36 @@ wss.on('connection', (ws) => {
 });
 
 app.get('/connect/:username', async (req, res) => {
-    await connectToTikTok(req.params.username);
-    res.json({ status: 'connected', username: req.params.username });
-});
-
-// Endpoint para agregar espectador manualmente (para pruebas)
-app.get('/addviewer/:username', (req, res) => {
     const username = req.params.username;
-    if (username && !viewers.has(username)) {
-        viewers.set(username, {
-            username: username,
-            nickname: username,
-            avatar: null
-        });
-        broadcastViewers();
-        res.json({ status: 'added', username });
-    } else {
-        res.json({ status: 'already exists or invalid', username });
-    }
+    console.log(`📡 Solicitud de conexión para: @${username}`);
+    await connectToTikTok(username);
+    res.json({ status: 'connected', username: username, timestamp: new Date().toISOString() });
 });
 
 app.get('/status', (req, res) => {
     res.json({ 
         connected: tiktokConnection?.isConnected || false, 
         viewers: viewers.size,
-        viewersList: Array.from(viewers.keys())
+        currentLive: currentUsername,
+        viewersList: Array.from(viewers.keys()).slice(0, 20),
+        timestamp: new Date().toISOString()
     });
+});
+
+// Endpoint de prueba para agregar espectadores manualmente (para debugging)
+app.get('/addtestviewer/:username', (req, res) => {
+    const username = req.params.username;
+    if (!viewers.has(username)) {
+        viewers.set(username, {
+            username: username,
+            nickname: `Test_${username}`,
+            avatar: `https://picsum.photos/seed/${username}/100/100` // Imagen de prueba
+        });
+        broadcastViewers();
+        res.json({ status: 'added', username, avatar: viewers.get(username).avatar });
+    } else {
+        res.json({ status: 'exists', username });
+    }
 });
 
 app.get('/', (req, res) => {
@@ -213,6 +246,6 @@ app.get('/', (req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📱 Accede en: http://localhost:${PORT}`);
+    console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`📱 Abre esta URL en tu navegador\n`);
 });
