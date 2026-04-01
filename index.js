@@ -21,15 +21,122 @@ let reconnectTimer = null;
 const MAX_VIEWERS = 3000;
 const RECONNECT_DELAY = 3000;
 
-function getAvatarUrl(user) {
+// Cache de avatares
+const avatarCache = new Map();
+
+// Tu API Key de TikTool
+const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
+
+// Función para obtener avatar de múltiples fuentes
+async function fetchAvatarFromMultipleSources(uniqueId) {
+    // Verificar cache primero
+    if (avatarCache.has(uniqueId)) {
+        return avatarCache.get(uniqueId);
+    }
+    
+    console.log(`🔍 Buscando avatar para @${uniqueId}...`);
+    
+    // Fuente 1: TikTool API (tu API key)
+    try {
+        const response = await fetch(`https://api.tik.tools/user/${uniqueId}`, {
+            headers: {
+                'Authorization': `Bearer ${TIKTOOL_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const avatarUrl = data?.user?.avatar || 
+                             data?.avatar || 
+                             data?.profilePicture || 
+                             data?.user?.profilePicture ||
+                             null;
+            
+            if (avatarUrl && avatarUrl.startsWith('http')) {
+                console.log(`✅ Avatar encontrado en TikTool para @${uniqueId}`);
+                avatarCache.set(uniqueId, avatarUrl);
+                return avatarUrl;
+            }
+        }
+    } catch (e) {
+        console.log(`TikTool error para @${uniqueId}: ${e.message}`);
+    }
+    
+    // Fuente 2: URL directa de TikTok
+    try {
+        // Intentar construir URL de avatar de TikTok
+        const tiktokAvatarUrl = `https://www.tiktok.com/@${uniqueId}/photo`;
+        // Verificar si existe (hacemos un fetch rápido)
+        const checkResponse = await fetch(tiktokAvatarUrl, { method: 'HEAD' });
+        if (checkResponse.ok) {
+            console.log(`✅ Avatar encontrado en TikTok para @${uniqueId}`);
+            avatarCache.set(uniqueId, tiktokAvatarUrl);
+            return tiktokAvatarUrl;
+        }
+    } catch (e) {
+        console.log(`TikTok direct error para @${uniqueId}: ${e.message}`);
+    }
+    
+    // Fuente 3: Servicio público de avatares
+    try {
+        const publicAvatarUrl = `https://pfp.danbooru.one/${uniqueId}.jpg`;
+        const checkResponse = await fetch(publicAvatarUrl, { method: 'HEAD' });
+        if (checkResponse.ok) {
+            console.log(`✅ Avatar encontrado en servicio público para @${uniqueId}`);
+            avatarCache.set(uniqueId, publicAvatarUrl);
+            return publicAvatarUrl;
+        }
+    } catch (e) {
+        console.log(`Public service error para @${uniqueId}: ${e.message}`);
+    }
+    
+    console.log(`⚠️ No se encontró avatar para @${uniqueId}`);
+    avatarCache.set(uniqueId, null);
+    return null;
+}
+
+// Función para obtener avatar de los datos del evento
+function getAvatarFromEvent(user) {
     try {
         if (user?.avatarThumbnail?.url) return user.avatarThumbnail.url;
         if (user?.avatarMedium?.url) return user.avatarMedium.url;
         if (user?.avatarLarge?.url) return user.avatarLarge.url;
+        if (user?.profilePicture) return user.profilePicture;
         return null;
     } catch (e) {
         return null;
     }
+}
+
+// Función principal para obtener avatar
+async function getBestAvatar(uniqueId, userData) {
+    // 1. Intentar del evento primero (más rápido)
+    const eventAvatar = getAvatarFromEvent(userData);
+    if (eventAvatar && eventAvatar.startsWith('http')) {
+        console.log(`📸 Avatar del evento para @${uniqueId}`);
+        avatarCache.set(uniqueId, eventAvatar);
+        return eventAvatar;
+    }
+    
+    // 2. Buscar en cache
+    if (avatarCache.has(uniqueId)) {
+        return avatarCache.get(uniqueId);
+    }
+    
+    // 3. Buscar en múltiples fuentes externas (en segundo plano)
+    fetchAvatarFromMultipleSources(uniqueId).then(avatar => {
+        if (avatar && viewers.has(uniqueId)) {
+            const viewer = viewers.get(uniqueId);
+            if (!viewer.avatar) {
+                viewer.avatar = avatar;
+                broadcastViewers();
+                console.log(`🖼️ Avatar actualizado para @${uniqueId}`);
+            }
+        }
+    });
+    
+    return null;
 }
 
 function broadcastViewers() {
@@ -47,17 +154,35 @@ function broadcastViewers() {
     });
 }
 
-function broadcastStatus(connected, message = '') {
+function broadcastCommand(command) {
+    const message = JSON.stringify({ type: 'command', command });
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            try { client.send(message); } catch (e) {}
+        }
+    });
+}
+
+function broadcastStatus(connected, message = '', viewerCount = null) {
     const statusMsg = JSON.stringify({ 
         type: 'connection_status', 
         connected, 
         message, 
         username: currentUsername,
-        viewerCount: viewers.size
+        viewerCount: viewerCount || viewers.size
     });
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             try { client.send(statusMsg); } catch (e) {}
+        }
+    });
+}
+
+function broadcastViewerCount(count) {
+    const countMsg = JSON.stringify({ type: 'viewer_count', count: count });
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            try { client.send(countMsg); } catch (e) {}
         }
     });
 }
@@ -163,7 +288,6 @@ function setupEventHandlers(username) {
             const existing = viewers.get(uniqueId);
             
             if (!existing) {
-                // Solo guardar nombre, sin foto inicialmente
                 viewers.set(uniqueId, {
                     username: uniqueId,
                     nickname: userData?.nickname || userData?.displayId || uniqueId,
@@ -187,14 +311,17 @@ function setupEventHandlers(username) {
         }
     }
     
-    function updateAvatar(uniqueId, avatarUrl) {
-        if (uniqueId && viewers.has(uniqueId) && avatarUrl) {
+    async function updateAvatar(uniqueId, userData) {
+        if (uniqueId && viewers.has(uniqueId)) {
             const viewer = viewers.get(uniqueId);
             if (!viewer.avatar) {
-                viewer.avatar = avatarUrl;
-                console.log(`🖼️ Foto para @${uniqueId}`);
-                pendingUpdate = true;
-                scheduleBroadcast();
+                const avatar = await getBestAvatar(uniqueId, userData);
+                if (avatar) {
+                    viewer.avatar = avatar;
+                    console.log(`🖼️ Foto cargada para @${uniqueId}`);
+                    pendingUpdate = true;
+                    scheduleBroadcast();
+                }
             }
         }
     }
@@ -222,6 +349,7 @@ function setupEventHandlers(username) {
         const count = data?.viewerCount || viewers.size;
         console.log(`📊 Espectadores: ${count}`);
         broadcastStatus(true, `Live: ${count} viewers`);
+        broadcastViewerCount(count);
     });
     
     tiktokConnection.on(WebcastEvent.MEMBER, (data) => {
@@ -237,27 +365,53 @@ function setupEventHandlers(username) {
         if (id) removeViewer(id);
     });
     
-    // SOLO QUIENES ENVÍAN REGALOS OBTIENEN FOTO
+    // QUIENES ENVÍAN REGALOS - OBTIENEN FOTO INMEDIATAMENTE
     tiktokConnection.on(WebcastEvent.GIFT, (data) => {
         if (data?.user) {
             const userId = data.user.uniqueId;
-            console.log(`🎁 REGALO de @${userId}: ${data.giftName}`);
+            console.log(`🎁 REGALO de @${userId}: ${data.giftName || 'gift'} x${data.repeatCount || 1}`);
             
-            // Obtener foto del evento si viene
-            const avatar = getAvatarUrl(data.user);
-            if (avatar) {
-                updateAvatar(userId, avatar);
-            } else {
-                // Si no tiene foto en el evento, asegurar que está en la lista
-                addViewer(data.user);
-            }
+            // Agregar a la lista si no existe
+            addViewer(data.user);
+            
+            // Buscar y actualizar avatar inmediatamente
+            updateAvatar(userId, data.user);
         }
     });
     
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
         if (data?.user) addViewer(data.user);
+        
+        const comment = data?.comment?.trim() || '';
+        if (comment.toLowerCase().startsWith('!send')) {
+            console.log(`📨 Comando: ${comment}`);
+            broadcastCommand(comment);
+        }
     });
 }
+
+// Endpoint para buscar usuario específico y obtener su foto
+app.get('/search/:username', async (req, res) => {
+    try {
+        const username = req.params.username.replace(/^@/, '').trim();
+        console.log(`🔍 Buscando usuario: ${username}`);
+        
+        // Buscar avatar en múltiples fuentes
+        const avatar = await fetchAvatarFromMultipleSources(username);
+        
+        // Buscar en espectadores actuales
+        const viewer = viewers.get(username);
+        
+        res.json({
+            username: username,
+            nickname: viewer?.nickname || username,
+            avatar: avatar,
+            found: !!viewer || !!avatar
+        });
+    } catch (err) {
+        res.json({ error: err.message });
+    }
+});
 
 wss.on('connection', (ws) => {
     console.log('📱 Cliente conectado');
@@ -337,6 +491,7 @@ server.listen(PORT, () => {
     console.log(`🚀 Servidor en puerto ${PORT}`);
     console.log(`⚙️ Configuración:`);
     console.log(`   📊 Máximo: ${MAX_VIEWERS} espectadores`);
-    console.log(`   🎁 Fotos solo para quienes envían regalos`);
+    console.log(`   🎁 Fotos para quienes envían regalos`);
+    console.log(`   🔍 Búsqueda manual de usuarios`);
     console.log(`   🔄 Reconexión automática cada ${RECONNECT_DELAY/1000}s`);
 });
