@@ -60,20 +60,6 @@
       pointer-events: auto;
       z-index: 3;
     }
-    .screen.leaving-left {
-      display: block;
-      opacity: .85;
-      transform: translateX(-26px);
-      z-index: 2;
-      pointer-events: none;
-    }
-    .screen.leaving-right {
-      display: block;
-      opacity: .85;
-      transform: translateX(26px);
-      z-index: 2;
-      pointer-events: none;
-    }
     .topbar {
       display: flex;
       align-items: center;
@@ -220,6 +206,11 @@
     }
     .btn-pink:active {
       transform: scale(.97);
+    }
+    .btn-pink:disabled {
+      opacity: 0.6;
+      transform: none;
+      cursor: not-allowed;
     }
     .hit {
       margin-top: 12px;
@@ -636,6 +627,51 @@
     .suggestions-list div:hover {
       background-color: #f0f0f0;
     }
+    .connection-panel {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-badge.connected {
+      background: #e6f7e6;
+      color: #0a5c0a;
+    }
+    .status-badge.disconnected {
+      background: #ffe6e6;
+      color: #c41e1e;
+    }
+    .live-user-count {
+      font-size: 13px;
+      color: var(--pink);
+      font-weight: 700;
+    }
+    .searching-text {
+      display: inline-block;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
@@ -647,6 +683,22 @@
         <div class="top-side"></div>
       </div>
       <div class="content">
+        <!-- Panel de conexión a TikTok Live -->
+        <div class="connection-panel">
+          <div class="connection-status">
+            <span>🔴 TikTok Live:</span>
+            <span id="connectionStatusBadge" class="status-badge disconnected">● Disconnected</span>
+            <span id="liveViewerCount" class="live-user-count"></span>
+          </div>
+          <div class="row">
+            <input type="text" id="tiktokUsername" class="input" placeholder="TikTok username (ej: elrubiuswtf)" />
+            <button id="connectTikTokBtn" class="btn btn-pink" style="padding: 14px 16px;">Connect</button>
+          </div>
+          <div style="font-size: 10px; color: #888; margin-top: 8px;">
+            💡 Conéctate a un live real para ver espectadores con sus fotos de perfil
+          </div>
+        </div>
+
         <div class="card">
           <div class="profile">
             <div class="profile-left">
@@ -665,7 +717,7 @@
               <input id="usernameInput" class="input" value="" placeholder="Enter username" autocomplete="off" />
               <div id="suggestionsList" class="suggestions-list"></div>
             </div>
-            <button class="btn btn-pink" id="confirmUser">Confirm</button>
+            <button class="btn btn-pink" id="searchUserBtn">Search</button>
           </div>
           <div class="hit">
             <div class="hit-pic" id="hitPic"></div>
@@ -771,7 +823,7 @@
       userTag: "DEMO24X",
       giftTitle: "Gift",
       giftHint: "Enter username to send credits",
-      confirmButton: "Confirm",
+      searchButton: "Search",
       searchingText: "Searching...",
       hitNameDefault: "User",
       hitMetaDefault: "Account",
@@ -881,6 +933,7 @@
     }
     
     let currentViewersMap = new Map();
+    let isSearching = false;
     
     function updateUserViews() {
       const username = currentUser();
@@ -1022,6 +1075,40 @@
       }, 200);
     });
     
+    // Botón Search - cambia a "Searching..." y no muestra sugerencias después
+    const searchBtn = document.getElementById('searchUserBtn');
+    searchBtn.addEventListener('click', () => {
+      const username = currentUser();
+      if(!username){
+        alert('Please enter a username');
+        return;
+      }
+      // Cambiar texto del botón a "Searching..."
+      const originalText = searchBtn.textContent;
+      searchBtn.textContent = cfg.searchingText;
+      searchBtn.disabled = true;
+      
+      // Ocultar sugerencias inmediatamente
+      suggestionsDiv.style.display = 'none';
+      
+      // Simular búsqueda
+      setTimeout(() => {
+        updateUserViews();
+        searchBtn.textContent = originalText;
+        searchBtn.disabled = false;
+        
+        // Mostrar mensaje en el chat log
+        const found = currentViewersMap.get(username);
+        if(found && found.avatar) {
+          addChatLog(`✅ Usuario @${username} encontrado con foto de perfil`);
+        } else if(found) {
+          addChatLog(`✅ Usuario @${username} encontrado (sin foto de perfil disponible)`);
+        } else {
+          addChatLog(`⚠️ Usuario @${username} no está en la lista de espectadores actuales`);
+        }
+      }, 800);
+    });
+    
     function initChatIntegration() {
       const sendBtn = document.getElementById('sendChatCommand');
       const inputField = document.getElementById('chatCommandInput');
@@ -1044,6 +1131,12 @@
           datalist.appendChild(option);
         });
         
+        // Actualizar contador de espectadores
+        const viewerCountSpan = document.getElementById('liveViewerCount');
+        if(viewerCountSpan) {
+          viewerCountSpan.textContent = `👥 ${viewerList.length} espectadores`;
+        }
+        
         addChatLog(`👥 ${viewerList.length} live viewers`);
         
         if (usernameInput.value.trim() !== '') {
@@ -1056,6 +1149,18 @@
       let reconnectAttempts = 0;
       const MAX_RECONNECT_ATTEMPTS = 5;
       
+      function updateConnectionStatus(connected, message = '') {
+        const badge = document.getElementById('connectionStatusBadge');
+        if(connected) {
+          badge.className = 'status-badge connected';
+          badge.innerHTML = '● Connected';
+        } else {
+          badge.className = 'status-badge disconnected';
+          badge.innerHTML = '● Disconnected';
+        }
+        if(message) addChatLog(message);
+      }
+      
       function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${protocol}//${window.location.host}`;
@@ -1065,6 +1170,7 @@
         
         ws.onopen = () => {
           addChatLog('✅ Connected to TikTok Live server');
+          updateConnectionStatus(true);
           reconnectAttempts = 0;
         };
         
@@ -1085,16 +1191,49 @@
         
         ws.onerror = (err) => {
           addChatLog(`⚠️ WebSocket error`, true);
+          updateConnectionStatus(false);
         };
         
         ws.onclose = () => {
           addChatLog('🔌 Disconnected. Reconnecting...', true);
+          updateConnectionStatus(false);
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts++;
             setTimeout(connectWebSocket, 3000);
           }
         };
       }
+      
+      // Botón para conectar a TikTok Live
+      const connectBtn = document.getElementById('connectTikTokBtn');
+      const tiktokUsernameInput = document.getElementById('tiktokUsername');
+      
+      connectBtn.addEventListener('click', async () => {
+        const username = tiktokUsernameInput.value.trim();
+        if(!username) {
+          alert('Please enter a TikTok username');
+          return;
+        }
+        
+        connectBtn.textContent = 'Connecting...';
+        connectBtn.disabled = true;
+        
+        try {
+          const response = await fetch(`/connect/@${username}`);
+          const result = await response.json();
+          if(result.status === 'connected') {
+            addChatLog(`✅ Connected to @${username}'s live!`);
+            updateConnectionStatus(true, `Connected to @${username}`);
+          } else {
+            addChatLog(`❌ Failed to connect: ${result.error || 'Unknown error'}`, true);
+          }
+        } catch(err) {
+          addChatLog(`❌ Connection error: ${err.message}`, true);
+        } finally {
+          connectBtn.textContent = 'Connect';
+          connectBtn.disabled = false;
+        }
+      });
       
       sendBtn.addEventListener('click', () => {
         const cmd = inputField.value;
@@ -1118,22 +1257,6 @@
       
       connectWebSocket();
     }
-    
-    document.getElementById('confirmUser').addEventListener('click', () => {
-      const btn = document.getElementById('confirmUser');
-      const username = currentUser();
-      if(!username){
-        alert('Please enter a username');
-        return;
-      }
-      btn.textContent = cfg.searchingText;
-      btn.disabled = true;
-      setTimeout(() => {
-        updateUserViews();
-        btn.textContent = cfg.confirmButton;
-        btn.disabled = false;
-      }, 650);
-    });
     
     document.getElementById('openCustom').addEventListener('click', () => animateTo('s2'));
     document.getElementById('backToMain').addEventListener('click', () => animateTo('s1'));
@@ -1216,7 +1339,7 @@
       document.getElementById('userTag').textContent = cfg.userTag;
       document.getElementById('giftTitle').textContent = cfg.giftTitle;
       document.getElementById('giftHint').textContent = cfg.giftHint;
-      document.getElementById('confirmUser').textContent = cfg.confirmButton;
+      document.getElementById('searchUserBtn').textContent = cfg.searchButton;
       document.getElementById('rechargeTitle').textContent = cfg.rechargeTitle;
       document.getElementById('rechargeHint').textContent = cfg.rechargeHint;
       document.getElementById('customAmountLabel').textContent = cfg.customAmountLabel;
@@ -1259,4 +1382,4 @@
     initChatIntegration();
   </script>
 </body>
-  </html>
+                           </html>
