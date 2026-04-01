@@ -100,14 +100,8 @@
       align-items: center;
       gap: 6px;
     }
-    .coin-icon {
-      display: inline-block;
-      width: 24px;
-      height: 24px;
-      background-image: url('https://static.cdn.tikTok.com/static/coin/coin_icon.png');
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
+    .coin-emoji {
+      font-size: 22px;
     }
     .row { display: flex; gap: 10px; margin-bottom: 12px; }
     .input {
@@ -212,73 +206,55 @@
       margin-bottom: 12px;
     }
 
-    /* Tarjeta Mastercard real */
-    .payment-method {
+    /* Tarjeta pequeña como emoji */
+    .payment-method-small {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       background: linear-gradient(135deg, #1e2a3a, #0f1722);
-      border-radius: 16px;
-      padding: 16px;
+      border-radius: 12px;
+      padding: 10px 14px;
       margin-top: 12px;
       color: white;
-      position: relative;
-      overflow: hidden;
     }
-    .card-chip {
-      width: 40px;
-      height: 32px;
-      background: linear-gradient(135deg, #d4af37, #f5e6b0);
-      border-radius: 8px;
-      margin-bottom: 20px;
-      position: relative;
-    }
-    .card-chip::before {
-      content: "";
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      width: 24px;
-      height: 16px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 4px;
-    }
-    .card-number {
-      font-size: 18px;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 2px;
-      margin-bottom: 16px;
-      font-weight: 600;
-    }
-    .card-details {
+    .card-info {
       display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      margin-bottom: 20px;
-    }
-    .card-holder {
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-    .card-brand {
-      display: flex;
-      justify-content: flex-end;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    .mastercard-logo {
+    .card-icons {
       display: flex;
-      gap: 6px;
+      align-items: center;
+      gap: 4px;
     }
-    .mastercard-red {
-      width: 32px;
-      height: 32px;
+    .mastercard-mini {
+      display: flex;
+      align-items: center;
+    }
+    .red-dot {
+      width: 24px;
+      height: 24px;
       background: #eb001b;
       border-radius: 50%;
+      display: inline-block;
     }
-    .mastercard-yellow {
-      width: 32px;
-      height: 32px;
+    .yellow-dot {
+      width: 24px;
+      height: 24px;
       background: #f79e1b;
       border-radius: 50%;
-      margin-left: -16px;
+      display: inline-block;
+      margin-left: -10px;
+    }
+    .card-number-mini {
+      font-family: monospace;
+      font-size: 13px;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .card-brand-text {
+      font-size: 12px;
+      font-weight: 500;
     }
 
     /* Modal de confirmación */
@@ -440,7 +416,7 @@
       <div class="balance">
         <span class="balance-label">Saldo disponible</span>
         <span class="balance-amount">
-          <span class="coin-icon"></span>
+          <span class="coin-emoji">🪙</span>
           <span id="balanceAmount">78,000,000</span>
         </span>
       </div>
@@ -466,21 +442,18 @@
       <div class="grid" id="packsGrid"></div>
       <div class="custom-box" id="openCustom">✨ Personalizar ✨</div>
       
-      <!-- Tarjeta Mastercard real con números -->
-      <div class="payment-method">
-        <div class="card-chip"></div>
-        <div class="card-number" id="cardNumberDisplay">5567 8901 2345 6789</div>
-        <div class="card-details">
-          <div class="card-holder">LIVE CREDITS</div>
-          <div>12/28</div>
-        </div>
-        <div class="card-brand">
-          <div class="mastercard-logo">
-            <div class="mastercard-red"></div>
-            <div class="mastercard-yellow"></div>
+      <!-- Tarjeta pequeña como emoji -->
+      <div class="payment-method-small">
+        <div class="card-info">
+          <div class="card-icons">
+            <div class="mastercard-mini">
+              <span class="red-dot"></span>
+              <span class="yellow-dot"></span>
+            </div>
           </div>
-          <span style="font-size:12px; font-weight:600">Mastercard</span>
+          <span class="card-brand-text">Mastercard</span>
         </div>
+        <div class="card-number-mini">•••• 6789</div>
       </div>
 
       <div class="invite-section">
@@ -515,25 +488,20 @@
   </div>
 </div>
 
-<!-- Modal de confirmación con tarjeta real -->
+<!-- Modal de confirmación -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
     <p id="confirmMessage" style="margin-bottom:20px"></p>
-    <div class="payment-method" style="margin-bottom:16px; padding:12px">
-      <div class="card-chip" style="width:30px; height:24px; margin-bottom:12px"></div>
-      <div class="card-number" style="font-size:14px" id="modalCardNumber">•••• •••• •••• 6789</div>
-      <div class="card-details" style="margin-bottom:12px">
-        <div class="card-holder">LIVE CREDITS</div>
-        <div>12/28</div>
-      </div>
-      <div class="card-brand">
-        <div class="mastercard-logo">
-          <div class="mastercard-red" style="width:24px; height:24px"></div>
-          <div class="mastercard-yellow" style="width:24px; height:24px"></div>
+    <div class="payment-method-small" style="margin-bottom:16px; justify-content:center; gap:12px">
+      <div class="card-icons">
+        <div class="mastercard-mini">
+          <span class="red-dot"></span>
+          <span class="yellow-dot"></span>
         </div>
-        <span style="font-size:10px">Mastercard</span>
       </div>
+      <span class="card-brand-text">Mastercard</span>
+      <span class="card-number-mini">•••• 6789</span>
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" id="cancelBtn">Cancelar</button>
@@ -561,11 +529,8 @@
   let pendingTransaction = null;
   let transactionHistory = [];
 
-  // Números de tarjeta reales
-  const cardNumber = "5567 8901 2345 6789";
   const cardLast4 = "6789";
 
-  // Packs exactamente como en TikTok
   const packs = [
     {coins: 30, usd: 0.32, note: ""},
     {coins: 350, usd: 3.65, note: ""},
@@ -591,7 +556,7 @@
       btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
       btn.innerHTML = `
         <div class="pack-coins">
-          <span class="coin-icon"></span>
+          <span class="coin-emoji">🪙</span>
           ${fmtCoins(p.coins)}
         </div>
         <div class="pack-price">${fmtUSD(p.usd)}</div>
@@ -651,7 +616,7 @@
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Cantidad de créditos</span>
-        <span class="receipt-value">${fmtCoins(coins)} créditos</span>
+        <span class="receipt-value">${fmtCoins(coins)} 🪙</span>
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Valor</span>
@@ -667,7 +632,7 @@
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Tarjeta</span>
-        <span class="receipt-value">Mastercard •••• ${cardLast4}</span>
+        <span class="receipt-value">💳 Mastercard •••• ${cardLast4}</span>
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Fecha</span>
@@ -692,7 +657,7 @@
       return false;
     }
     if (selectedCoins > balance) {
-      addChatLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} créditos`, true);
+      addChatLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, true);
       return false;
     }
     
@@ -711,7 +676,7 @@
     document.getElementById('confirmMessage').innerHTML = `
       <div style="text-align:left">
         <div style="margin-bottom:8px"><strong>Enviar a:</strong> @${username}</div>
-        <div style="margin-bottom:8px"><strong>Créditos:</strong> ${fmtCoins(selectedCoins)}</div>
+        <div style="margin-bottom:8px"><strong>Créditos:</strong> ${fmtCoins(selectedCoins)} 🪙</div>
         <div style="margin-bottom:8px"><strong>Valor:</strong> ${fmtUSD(selectedUsd)}</div>
         <div><strong>Comisión:</strong> ${fmtUSD(fee)}</div>
         <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee"><strong>Total:</strong> ${fmtUSD(total)}</div>
@@ -740,7 +705,7 @@
         pendingTransaction.transactionId
       );
       
-      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} créditos a @${pendingTransaction.username} - ID: ${pendingTransaction.transactionId}`);
+      addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username} - ID: ${pendingTransaction.transactionId}`);
       
       pendingTransaction = null;
     }
@@ -758,7 +723,7 @@
       const res = await fetch(`/search/${username}`);
       const data = await res.json();
       if (data.avatar) {
-        addChatLog(`✅ @${username} - Foto de perfil encontrada`);
+        addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
         if (currentViewersMap.has(username)) {
           currentViewersMap.get(username).avatar = data.avatar;
         } else {
@@ -854,7 +819,7 @@
       selectedCoins = parseInt(amount);
       selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
       document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
+      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`);
     }
   };
 
