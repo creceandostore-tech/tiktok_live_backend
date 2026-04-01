@@ -1,7 +1,7 @@
-const fetch = require('node-fetch');
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const fetch = require('node-fetch');  // <-- AGREGAR ESTA LÍNEA
 const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
 const path = require('path');
 
