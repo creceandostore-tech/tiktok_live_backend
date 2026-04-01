@@ -109,10 +109,6 @@
     .chat-input { flex: 1; border: 1px solid var(--line); border-radius: 14px; padding: 10px; font-size: 14px; }
     .chat-btn { padding: 10px 16px; background: #1c1c1e; color: #fff; border: none; border-radius: 14px; font-weight: 600; cursor: pointer; }
     .chat-log { background: #f8f8fa; border-radius: 14px; padding: 8px; margin-top: 12px; font-size: 12px; color: #666; max-height: 80px; overflow-y: auto; }
-    .suggestions-container { position: relative; flex: 1; }
-    .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 14px; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
-    .suggestions-list div { padding: 10px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #eee; }
-    .suggestions-list div:hover { background-color: #f0f0f0; }
     .connection-panel { background: #fff; border-radius: var(--radius); padding: 14px; margin-top: 18px; box-shadow: var(--shadow); }
     .connection-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; flex-wrap: wrap; gap: 8px; }
     .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
@@ -140,8 +136,17 @@
           </div>
           <div class="label" id="giftTitle">Gift</div>
           <div class="tiny-red" id="giftHint">Enter username to send credits</div>
-          <div class="row"><div class="suggestions-container"><input id="usernameInput" class="input" value="" placeholder="Enter username" autocomplete="off" /><div id="suggestionsList" class="suggestions-list"></div></div><button class="btn btn-pink" id="searchUserBtn">Search</button></div>
-          <div class="hit"><div class="hit-pic" id="hitPic"></div><div><div class="hit-name" id="hitName">User</div><div class="hit-user" id="previewUser">No user selected</div></div></div>
+          <div class="row">
+            <input id="usernameInput" class="input" value="" placeholder="Enter username" autocomplete="off" />
+            <button class="btn btn-pink" id="searchUserBtn">Search</button>
+          </div>
+          <div class="hit">
+            <div class="hit-pic" id="hitPic"></div>
+            <div>
+              <div class="hit-name" id="hitName">User</div>
+              <div class="hit-user" id="previewUser">No user selected</div>
+            </div>
+          </div>
         </div>
         <div class="section">
           <div class="section-head"><div class="section-title" id="rechargeTitle">Recharge</div><div class="section-right" id="pricingLabel">Pricing</div></div>
@@ -326,24 +331,9 @@
       while(logDiv.children.length > 20) logDiv.removeChild(logDiv.firstChild);
     }
     
-    const usernameInput = document.getElementById('usernameInput'), suggestionsDiv = document.getElementById('suggestionsList');
-    function updateSuggestions(inputText) {
-      if (!inputText || inputText.trim() === '') { suggestionsDiv.style.display = 'none'; return; }
-      const matches = Array.from(currentViewersMap.keys()).filter(u => u.toLowerCase().includes(inputText.toLowerCase()));
-      if (matches.length === 0) { suggestionsDiv.style.display = 'none'; return; }
-      suggestionsDiv.innerHTML = '';
-      matches.forEach(m => {
-        const item = document.createElement('div');
-        item.textContent = m;
-        item.onclick = () => { usernameInput.value = m; suggestionsDiv.style.display = 'none'; updateUserViews(); usernameInput.focus(); };
-        suggestionsDiv.appendChild(item);
-      });
-      suggestionsDiv.style.display = 'block';
-    }
-    usernameInput.addEventListener('input', (e) => updateSuggestions(e.target.value));
-    usernameInput.addEventListener('blur', () => { setTimeout(() => { suggestionsDiv.style.display = 'none'; }, 200); });
-    
+    const usernameInput = document.getElementById('usernameInput');
     const searchBtn = document.getElementById('searchUserBtn');
+    
     searchBtn.addEventListener('click', async () => {
       const username = currentUser();
       if(!username){
@@ -354,24 +344,36 @@
       const originalText = searchBtn.textContent;
       searchBtn.textContent = cfg.searchingText;
       searchBtn.disabled = true;
-      suggestionsDiv.style.display = 'none';
       
       try {
         const response = await fetch(`/search/${username}`);
         const data = await response.json();
         
-        updateUserViews();
-        
         if(data.avatar) {
           addChatLog(`✅ Usuario @${username} encontrado con foto de perfil real`);
+          
+          // Actualizar en el mapa local
           if(currentViewersMap.has(username)) {
-            const viewer = currentViewersMap.get(username);
-            viewer.avatar = data.avatar;
-            currentViewersMap.set(username, viewer);
-            updateUserViews();
+            currentViewersMap.get(username).avatar = data.avatar;
+          } else {
+            currentViewersMap.set(username, {
+              username: username,
+              nickname: data.nickname || username,
+              avatar: data.avatar
+            });
           }
+          
+          // Actualizar la vista del usuario
+          updateUserViews();
+          
+          // También actualizar la foto en el hit
+          const hitPicEl = document.getElementById('hitPic');
+          hitPicEl.innerHTML = `<img src="${data.avatar}" alt="${username}" onerror="this.onerror=null;this.parentElement.innerHTML='';this.parentElement.style.background='linear-gradient(135deg,#dce4ff,#a3b9ff)'">`;
+          hitPicEl.style.background = 'transparent';
+          
         } else if(data.found) {
           addChatLog(`✅ Usuario @${username} encontrado (sin foto de perfil disponible)`);
+          updateUserViews();
         } else {
           addChatLog(`⚠️ Usuario @${username} no encontrado en el live actual`);
         }
@@ -395,7 +397,6 @@
         const viewerCountSpan = document.getElementById('liveViewerCount');
         if(viewerCountSpan) viewerCountSpan.textContent = `👥 ${viewerList.length}`;
         addChatLog(`👥 ${viewerList.length} live viewers`);
-        if (usernameInput.value.trim() !== '') { updateSuggestions(usernameInput.value); updateUserViews(); }
       }
       
       function updateConnectionStatus(connected, message = '', viewerCount = null) {
@@ -554,4 +555,4 @@
     initChatIntegration();
   </script>
 </body>
-        </html>
+</html>
