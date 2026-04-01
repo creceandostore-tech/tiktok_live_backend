@@ -212,51 +212,52 @@
       margin-bottom: 12px;
     }
 
-    /* Tarjeta Mastercard */
-    .mastercard-card {
-      background: linear-gradient(135deg, #1a1f2e, #0f1119);
-      border-radius: 16px;
-      padding: 16px;
-      margin-top: 12px;
-      color: white;
-      position: relative;
-      overflow: hidden;
-    }
-    .card-brand {
+    /* Tarjeta como emoji pequeña */
+    .payment-method {
       display: flex;
-      justify-content: flex-end;
-      margin-bottom: 20px;
-    }
-    .mastercard-logo {
-      display: flex;
-      gap: 8px;
-    }
-    .mastercard-circle {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-    }
-    .circle-red {
-      background: #eb001b;
-      margin-right: -12px;
-    }
-    .circle-yellow {
-      background: #f79e1b;
-      opacity: 0.8;
-    }
-    .card-number {
-      font-size: 18px;
-      letter-spacing: 2px;
-      margin-bottom: 16px;
-      font-family: monospace;
-    }
-    .card-details {
-      display: flex;
+      align-items: center;
       justify-content: space-between;
-      font-size: 12px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-top: 12px;
+      border: 1px solid #eee;
     }
-    .card-holder {
-      text-transform: uppercase;
+    .card-emoji {
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .mastercard-emojis {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .red-circle {
+      width: 24px;
+      height: 24px;
+      background: #eb001b;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .yellow-circle {
+      width: 24px;
+      height: 24px;
+      background: #f79e1b;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: -10px;
+    }
+    .card-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+    .card-number-small {
+      font-size: 12px;
+      color: #666;
+      font-family: monospace;
     }
 
     /* Modal de confirmación */
@@ -398,6 +399,11 @@
       font-size: 12px;
       color: #666;
     }
+    .payment-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -444,19 +450,18 @@
       <div class="grid" id="packsGrid"></div>
       <div class="custom-box" id="openCustom">Personalizar</div>
       
-      <!-- Tarjeta Mastercard -->
-      <div class="mastercard-card">
-        <div class="card-brand">
-          <div class="mastercard-logo">
-            <div class="mastercard-circle circle-red"></div>
-            <div class="mastercard-circle circle-yellow"></div>
+      <!-- Tarjeta como emoji pequeña -->
+      <div class="payment-method">
+        <div class="payment-row">
+          <div class="card-emoji">
+            <div class="mastercard-emojis">
+              <span class="red-circle"></span>
+              <span class="yellow-circle"></span>
+            </div>
           </div>
+          <div class="card-text">Mastercard</div>
         </div>
-        <div class="card-number">•••• •••• •••• 2024</div>
-        <div class="card-details">
-          <div class="card-holder">LIVE CREDITS</div>
-          <div>12/28</div>
-        </div>
+        <div class="card-number-small">•••• 2024</div>
       </div>
 
       <div class="invite-section">
@@ -491,23 +496,22 @@
   </div>
 </div>
 
-<!-- Modal de confirmación -->
+<!-- Modal de confirmación con tarjeta emoji -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
     <p id="confirmMessage" style="margin-bottom:20px"></p>
-    <div class="mastercard-card" style="margin-bottom:16px; padding:12px">
-      <div class="card-brand">
-        <div class="mastercard-logo">
-          <div class="mastercard-circle circle-red"></div>
-          <div class="mastercard-circle circle-yellow"></div>
+    <div class="payment-method" style="background:#f8f8fa; margin-bottom:16px">
+      <div class="payment-row">
+        <div class="card-emoji">
+          <div class="mastercard-emojis">
+            <span class="red-circle"></span>
+            <span class="yellow-circle"></span>
+          </div>
         </div>
+        <div class="card-text">Mastercard</div>
       </div>
-      <div class="card-number">•••• •••• •••• 2024</div>
-      <div class="card-details">
-        <div class="card-holder">LIVE CREDITS</div>
-        <div>12/28</div>
-      </div>
+      <div class="card-number-small">•••• 2024</div>
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" id="cancelBtn">Cancelar</button>
@@ -610,7 +614,7 @@
     while(log.children.length > 20) log.removeChild(log.firstChild);
   }
 
-  function showReceipt(username, amount, coins, fee, total, transactionId, cardLast4 = '2024') {
+  function showReceipt(username, amount, coins, fee, total, transactionId) {
     const receiptDetails = document.getElementById('receiptDetails');
     const now = new Date();
     
@@ -636,8 +640,8 @@
         <span class="receipt-value">${fmtUSD(total)}</span>
       </div>
       <div class="receipt-row">
-        <span class="receipt-label">Tarjeta</span>
-        <span class="receipt-value">Mastercard •••• ${cardLast4}</span>
+        <span class="receipt-label">Método de pago</span>
+        <span class="receipt-value">💳 Mastercard •••• 2024</span>
       </div>
       <div class="receipt-row">
         <span class="receipt-label">Fecha</span>
@@ -696,7 +700,6 @@
       balance -= pendingTransaction.coins;
       updateBalanceUI();
       
-      // Guardar en historial
       transactionHistory.push({
         ...pendingTransaction,
         date: new Date().toISOString()
@@ -708,8 +711,7 @@
         pendingTransaction.coins,
         pendingTransaction.fee,
         pendingTransaction.total,
-        pendingTransaction.transactionId,
-        '2024'
+        pendingTransaction.transactionId
       );
       
       addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} créditos a @${pendingTransaction.username} - ID: ${pendingTransaction.transactionId}`);
