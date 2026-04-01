@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
+const { TikTokLive, WebcastEvent } = require('tiktok-live-connector');
 const path = require('path');
 
 const app = express();
@@ -52,7 +52,9 @@ async function connectToTikTok(username) {
         try { await tiktokConnection.disconnect(); } catch(e) {}
     }
     viewers.clear();
-    tiktokConnection = new TikTokLiveConnection(username, {
+
+    // Usar TikTokLive en lugar de TikTokLiveConnection
+    tiktokConnection = new TikTokLive(username, {
         enableExtendedGiftInfo: true,
         processInitialData: true
     });
@@ -100,11 +102,13 @@ async function connectToTikTok(username) {
         }
     }
 
-    tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
+    // Eventos con nombres correctos (sin guiones bajos)
+    tiktokConnection.on(WebcastEvent.MemberJoin, (data) => {
+        console.log(`👋 Miembro unido: ${data.user.uniqueId}`);
         addOrUpdateViewer(data.user);
     });
 
-    tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
+    tiktokConnection.on(WebcastEvent.MemberLeave, (data) => {
         const uniqueId = data.user.uniqueId;
         if (uniqueId && viewers.has(uniqueId)) {
             viewers.delete(uniqueId);
@@ -113,7 +117,8 @@ async function connectToTikTok(username) {
         }
     });
 
-    tiktokConnection.on(WebcastEvent.CHAT, (data) => {
+    tiktokConnection.on(WebcastEvent.Chat, (data) => {
+        console.log(`💬 Chat de ${data.user.uniqueId}: ${data.comment}`);
         addOrUpdateViewer(data.user);
 
         const comment = data.comment.trim();
@@ -122,12 +127,19 @@ async function connectToTikTok(username) {
         }
     });
 
-    try {
-        await tiktokConnection.connect();
+    // También podemos escuchar el evento 'connected' para saber cuándo está listo
+    tiktokConnection.on(WebcastEvent.Connected, () => {
         console.log(`✅ Conectado al live de @${username}`);
         setTimeout(() => broadcastViewers(), 2000);
+    });
+
+    try {
+        await tiktokConnection.connect();
+        console.log(`🔄 Intentando conectar a @${username}...`);
     } catch (err) {
-        console.error(`❌ Error: ${err.message}`);
+        console.error(`❌ Error de conexión a TikTok: ${err.message}`);
+        // Intentar reconectar después de 5 segundos (opcional)
+        setTimeout(() => connectToTikTok(username), 5000);
     }
 }
 
