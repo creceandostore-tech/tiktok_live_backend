@@ -27,7 +27,6 @@
     .content {
       padding: 20px;
     }
-    /* Notificaciones estilo chat flotante */
     .notifications-area {
       position: fixed;
       bottom: 20px;
@@ -46,7 +45,7 @@
       background: linear-gradient(135deg, #1a1a2e, #16213e);
       color: white;
       border-radius: 50px;
-      padding: 10px 16px;
+      padding: 12px 18px;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -68,14 +67,14 @@
       to { opacity: 0; transform: translateY(-20px); visibility: hidden; }
     }
     .gift-avatar {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: #fe2c55;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 16px;
       overflow: hidden;
     }
     .gift-avatar img {
@@ -100,14 +99,15 @@
       font-weight: normal;
     }
     .gift-detail {
-      font-size: 11px;
+      font-size: 12px;
       color: #ffd700;
+      font-weight: 500;
     }
     .copy-btn {
       background: rgba(255,255,255,0.2);
       border: none;
       border-radius: 20px;
-      padding: 5px 10px;
+      padding: 6px 12px;
       font-size: 11px;
       color: white;
       cursor: pointer;
@@ -120,7 +120,6 @@
     .copy-btn.copied {
       background: #28a745;
     }
-
     .card {
       background: #f8f8fa;
       border-radius: 16px;
@@ -571,20 +570,11 @@
       background: white;
       border-radius: 12px;
     }
-    .donor-badge {
-      background: #ffd700;
-      color: #333;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 10px;
-      margin-left: 6px;
-    }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="content">
-    <!-- Perfil -->
     <div class="card profile-card">
       <div class="profile-info">
         <div class="profile-avatar">
@@ -610,8 +600,8 @@
     <div class="card">
       <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
       <div class="row">
-        <input id="usernameInput" class="input" list="viewersList" placeholder="Usuario de TikTok" autocomplete="off" />
-        <datalist id="viewersList"></datalist>
+        <input id="usernameInput" class="input" list="donorsList" placeholder="Usuario de TikTok" autocomplete="off" />
+        <datalist id="donorsList"></datalist>
         <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
       <div class="hit">
@@ -673,10 +663,8 @@
   </div>
 </div>
 
-<!-- Área de notificaciones flotantes -->
 <div id="notificationsArea" class="notifications-area"></div>
 
-<!-- Modal de confirmación -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
@@ -698,7 +686,6 @@
   </div>
 </div>
 
-<!-- Loading overlay -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
@@ -713,7 +700,6 @@
   </div>
 </div>
 
-<!-- Comprobante -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-icon">✓</div>
@@ -766,21 +752,21 @@
     }
   }
 
-  function showGiftNotification(username, nickname, giftName, avatarUrl = null) {
+  function showGiftNotification(username, nickname, giftName, giftCount, avatarUrl) {
     const area = document.getElementById('notificationsArea');
     const notification = document.createElement('div');
     notification.className = 'gift-notification';
     
     notification.innerHTML = `
       <div class="gift-avatar">
-        ${avatarUrl ? `<img src="${avatarUrl}" onerror="this.style.display='none';this.parentElement.innerHTML='🎁'">` : '🎁'}
+        ${avatarUrl ? `<img src="${avatarUrl}" onerror="this.style.display='none';this.parentElement.innerHTML='🎁'">` : '👤'}
       </div>
       <div class="gift-info">
         <div class="gift-username">
           @${username}
           ${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}
         </div>
-        <div class="gift-detail">Envió ${giftName} 🎁</div>
+        <div class="gift-detail">Envió ${giftName} x${giftCount}</div>
       </div>
       <button class="copy-btn" data-username="${username}">Copiar</button>
     `;
@@ -793,6 +779,7 @@
     
     area.appendChild(notification);
     
+    // 10 segundos de duración
     setTimeout(() => {
       if (notification.parentNode) {
         notification.classList.add('fade-out');
@@ -800,7 +787,7 @@
           if (notification.parentNode) notification.remove();
         }, 500);
       }
-    }, 5000);
+    }, 10000);
   }
 
   function clearUserInput() {
@@ -811,18 +798,18 @@
     document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
-  function updateDonorList(donors, totalDonors) {
+  function updateDonorList(donors) {
     currentDonorsMap.clear();
     donors.forEach(v => {
       currentDonorsMap.set(v.username, {
         username: v.username,
         nickname: v.nickname,
         avatar: v.avatar,
-        giftName: v.giftName
+        lastGift: v.lastGift
       });
     });
     
-    const datalist = document.getElementById('viewersList');
+    const datalist = document.getElementById('donorsList');
     datalist.innerHTML = '';
     donors.forEach(donor => {
       const option = document.createElement('option');
@@ -1040,14 +1027,12 @@
         if (currentDonorsMap.has(username)) {
           currentDonorsMap.get(username).avatar = data.avatar;
           currentDonorsMap.get(username).nickname = data.nickname;
-        } else {
-          currentDonorsMap.set(username, { username, nickname: data.nickname, avatar: data.avatar });
         }
         updateUserViews();
       } else if (data.found) {
-        addChatLog(`✅ @${username} (${data.nickname}) encontrado`);
+        addChatLog(`✅ @${username} (${data.nickname}) es donador`);
       } else {
-        addChatLog(`⚠️ @${username} no está en la lista de donadores`);
+        addChatLog(`⚠️ @${username} no es donador aún`);
       }
     } catch(e) {
       addChatLog(`❌ Error: ${e.message}`, true);
@@ -1064,11 +1049,9 @@
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === 'viewers') {
-          updateDonorList(data.data, data.total);
+        if (data.type === 'donors') {
+          updateDonorList(data.data);
           addChatLog(`🎁 ${data.data.length} donadores registrados`);
-        } else if (data.type === 'command') {
-          addChatLog(`📡 Comando recibido: ${data.command}`);
         } else if (data.type === 'connection_status') {
           const badge = document.getElementById('connectionStatusBadge');
           const connectBtn = document.getElementById('connectTikTokBtn');
@@ -1089,13 +1072,13 @@
         } else if (data.type === 'gift') {
           const giftUser = data.username;
           const giftNickname = data.nickname || giftUser;
-          const giftName = data.giftName || 'regalo';
+          const giftName = data.giftName || 'Gift';
+          const giftCount = data.giftCount || 1;
           const giftAvatar = data.avatar || null;
           
-          addChatLog(`🎁 @${giftUser} (${giftNickname}) envió ${giftName}`);
+          addChatLog(`🎁 @${giftUser} (${giftNickname}) envió ${giftName} x${giftCount}`);
           
-          // Mostrar notificación flotante
-          showGiftNotification(giftUser, giftNickname, giftName, giftAvatar);
+          showGiftNotification(giftUser, giftNickname, giftName, giftCount, giftAvatar);
         }
       } catch(e) { console.error(e); }
     };
@@ -1128,7 +1111,7 @@
       await fetch('/disconnect');
       addChatLog('✅ Desconectado manualmente del live');
       currentDonorsMap.clear();
-      updateDonorList([], 0);
+      updateDonorList([]);
     } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
     finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
   };
