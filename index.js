@@ -2,9 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-
-// Importación CORRECTA para la versión 2.0.0
-const { TikTokLiveConnection, WebcastEvent } = require('tiktok-live-connector');
+const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,18 +15,16 @@ let activeConnection = null;
 let currentUsername = null;
 let clients = new Set();
 let gifters = new Map(); // Todos los que envían regalos
-let donors = new Map(); // Donadores persistentes (100+ diamantes)
+let donors = new Map(); // Donadores persistentes
 
-// Configuración OBLIGATORIA para que funcione
-const connectionOptions = {
-    processInitialData: true,
-    enableExtendedGiftInfo: true,  // Necesario para obtener nombres de regalos
-    requestPollingIntervalMs: 2000,
-    fetchRoomInfoOnConnect: true,
-    // La librería usa automáticamente el servidor de firma público
+// Configuración básica que funciona
+const config = {
+    processInitialData: false,
+    enableExtendedGiftInfo: true,
+    enableWebsocketUpgrade: true,
+    requestPollingIntervalMs: 2000
 };
 
-// Broadcast a todos los clientes frontend
 function broadcastToAllClients(message) {
     const msgStr = JSON.stringify(message);
     clients.forEach(client => {
@@ -38,56 +34,41 @@ function broadcastToAllClients(message) {
     });
 }
 
-// Actualizar y enviar lista de gifters
 function broadcastGiftersList() {
     const list = Array.from(gifters.values())
         .sort((a, b) => b.totalGifts - a.totalGifts)
         .map(v => ({
             username: v.username,
             nickname: v.nickname,
-            avatar: v.avatar,
             isDonor: v.isDonor || false,
-            totalGifts: v.totalGifts,
-            giftCount: v.giftCount || 1
+            totalGifts: v.totalGifts
         }));
     
     broadcastToAllClients({
         type: 'viewers_update',
         data: list,
         total: gifters.size,
-        donors: donors.size,
-        timestamp: Date.now()
+        donors: donors.size
     });
 }
 
-// Procesar evento de REGALO
-function processGiftEvent(data) {
+// Procesar regalo
+function processGift(giftEvent) {
     try {
-        // Extraer información del evento
-        const uniqueId = data.uniqueId;
-        const giftName = data.giftName || 'Regalo';
-        const diamondCount = data.diamondCount || 1;
-        const repeatEnd = data.repeatEnd;
-        
-        // Los regalos en racha solo se procesan al final
-        if (repeatEnd !== undefined && repeatEnd !== 1) {
-            console.log(`⏳ Regalo en racha: @${uniqueId} - ${giftName} (${diamondCount}💎) - esperando final...`);
-            return;
-        }
+        const uniqueId = giftEvent.uniqueId;
+        const giftName = giftEvent.giftName || 'Regalo';
+        const diamondCount = giftEvent.diamondCount || 1;
         
         console.log(`🎁 REGALO: @${uniqueId} - ${giftName} (${diamondCount}💎)`);
         
         const now = Date.now();
         
-        // Actualizar o crear gifter
         if (!gifters.has(uniqueId)) {
             gifters.set(uniqueId, {
                 username: uniqueId,
                 nickname: uniqueId,
-                avatar: null,
                 lastGiftTime: now,
                 totalGifts: diamondCount,
-                giftCount: 1,
                 isDonor: false
             });
             console.log(`✨ NUEVO GIFTER: @${uniqueId}`);
@@ -95,71 +76,55 @@ function processGiftEvent(data) {
             const existing = gifters.get(uniqueId);
             existing.lastGiftTime = now;
             existing.totalGifts += diamondCount;
-            existing.giftCount = (existing.giftCount || 0) + 1;
             gifters.set(uniqueId, existing);
-            console.log(`🔄 ACTUALIZADO: @${uniqueId} - Total: ${existing.totalGifts}💎 (${existing.giftCount} regalos)`);
+            console.log(`🔄 ACTUALIZADO: @${uniqueId} - Total: ${existing.totalGifts}💎`);
         }
         
-        const gifter = gifters.get(uniqueId);
-        const totalGifts = gifter.totalGifts;
+        const totalGifts = gifters.get(uniqueId).totalGifts;
         
-        // Verificar si se convierte en DONADOR (100+ diamantes totales)
+        // Donador si acumula 100+ diamantes
         if (totalGifts >= 100 && !donors.has(uniqueId)) {
             donors.set(uniqueId, {
                 username: uniqueId,
                 nickname: uniqueId,
-                avatar: null,
-                totalGifts: totalGifts,
-                giftCount: gifter.giftCount,
-                firstGiftDate: now
+                totalGifts: totalGifts
             });
             
+            const gifter = gifters.get(uniqueId);
             gifter.isDonor = true;
             gifters.set(uniqueId, gifter);
             
-            console.log(`🏆 NUEVO DONADOR: @${uniqueId} (${totalGifts}💎 en ${gifter.giftCount} regalos)`);
+            console.log(`🏆 DONADOR: @${uniqueId} (${totalGifts}💎)`);
             
-            // Notificar nuevo donador
             broadcastToAllClients({
                 type: 'new_donor',
-                data: {
-                    username: uniqueId,
-                    nickname: uniqueId,
-                    avatar: null,
-                    totalGifts: totalGifts,
-                    giftCount: gifter.giftCount
-                }
+                data: { username: uniqueId, totalGifts: totalGifts }
             });
         }
         
-        // Notificar regalo en tiempo real
+        // Notificar regalo
         broadcastToAllClients({
             type: 'new_gift',
             data: {
                 username: uniqueId,
-                nickname: uniqueId,
-                avatar: null,
                 giftName: giftName,
                 diamondCount: diamondCount,
                 totalGifts: totalGifts,
-                giftCount: gifter.giftCount,
-                isDonor: gifter.isDonor
+                isDonor: gifters.get(uniqueId).isDonor
             }
         });
         
-        // Actualizar lista completa
         broadcastGiftersList();
         
     } catch (error) {
-        console.error('Error procesando regalo:', error);
+        console.error('Error en processGift:', error);
     }
 }
 
-// Limpieza de inactivos cada 2 minutos
+// Limpiar inactivos cada 2 minutos
 setInterval(() => {
     const now = Date.now();
     let cleaned = 0;
-    
     for (const [username, data] of gifters.entries()) {
         if (now - data.lastGiftTime > 120000) {
             gifters.delete(username);
@@ -167,7 +132,6 @@ setInterval(() => {
             console.log(`🗑️ Eliminado @${username} (inactivo)`);
         }
     }
-    
     if (cleaned > 0) {
         console.log(`🧹 Limpiados ${cleaned} gifters inactivos`);
         broadcastGiftersList();
@@ -191,11 +155,10 @@ async function connectToTikTok(username) {
     });
     
     try {
-        // Usar la clase correcta TikTokLiveConnection (no WebcastPushConnection)
-        activeConnection = new TikTokLiveConnection(currentUsername, connectionOptions);
+        activeConnection = new WebcastPushConnection(currentUsername, config);
         
         // Evento de conexión exitosa
-        activeConnection.on(WebcastEvent.CONNECTED, (state) => {
+        activeConnection.on('connected', (state) => {
             console.log(`✅ CONECTADO a @${currentUsername} - Room ID: ${state.roomId}`);
             broadcastToAllClients({
                 type: 'connection_status',
@@ -205,14 +168,14 @@ async function connectToTikTok(username) {
             });
         });
         
-        // Evento de REGALO - El más importante
-        activeConnection.on(WebcastEvent.GIFT, (data) => {
-            console.log(`📦 Evento GIFT recibido:`, JSON.stringify(data, null, 2));
-            processGiftEvent(data);
+        // EVENTO DE REGALO - El importante
+        activeConnection.on('gift', (data) => {
+            console.log(`📦 GIFT EVENT RECEIVED:`, JSON.stringify(data, null, 2));
+            processGift(data);
         });
         
-        // Evento de desconexión con reconexión automática
-        activeConnection.on(WebcastEvent.DISCONNECTED, () => {
+        // Desconexión con reconexión automática
+        activeConnection.on('disconnected', () => {
             console.log(`🔌 Desconectado de @${currentUsername}`);
             broadcastToAllClients({
                 type: 'connection_status',
@@ -220,7 +183,6 @@ async function connectToTikTok(username) {
                 message: 'Desconectado - Reconectando...'
             });
             
-            // Reconectar después de 5 segundos
             setTimeout(() => {
                 if (currentUsername) {
                     console.log('🔄 Reconectando...');
@@ -229,8 +191,8 @@ async function connectToTikTok(username) {
             }, 5000);
         });
         
-        // Evento de error
-        activeConnection.on(WebcastEvent.ERROR, (err) => {
+        // Errores
+        activeConnection.on('error', (err) => {
             console.error(`❌ Error: ${err.message}`);
             broadcastToAllClients({
                 type: 'connection_status',
@@ -239,10 +201,14 @@ async function connectToTikTok(username) {
             });
         });
         
+        // También escuchamos chat para debug
+        activeConnection.on('chat', (data) => {
+            console.log(`💬 Chat: @${data.uniqueId}: ${data.comment}`);
+        });
+        
         // Conectar
         await activeConnection.connect();
-        console.log(`🎧 Escuchando eventos de @${currentUsername}...`);
-        
+        console.log(`🎧 Escuchando eventos...`);
         return true;
         
     } catch (err) {
@@ -253,7 +219,6 @@ async function connectToTikTok(username) {
             message: `Error: ${err.message}`
         });
         
-        // Reconectar después de error
         setTimeout(() => {
             if (currentUsername) {
                 connectToTikTok(currentUsername);
@@ -268,13 +233,13 @@ async function connectToTikTok(username) {
 
 app.get('/connect/:username', async (req, res) => {
     const username = req.params.username;
-    console.log(`\n📡 CONEXIÓN SOLICITADA: ${username}`);
+    console.log(`\n📡 CONECTANDO A: ${username}`);
     await connectToTikTok(username);
     res.json({ status: 'connecting', username });
 });
 
 app.get('/disconnect', (req, res) => {
-    console.log(`\n🔌 DESCONEXIÓN MANUAL`);
+    console.log(`\n🔌 DESCONECTANDO`);
     if (activeConnection) {
         activeConnection.disconnect();
     }
@@ -295,27 +260,17 @@ app.get('/status', (req, res) => {
 
 app.get('/gifters', (req, res) => {
     const list = Array.from(gifters.values()).sort((a, b) => b.totalGifts - a.totalGifts);
-    const totalGifts = list.reduce((sum, g) => sum + g.totalGifts, 0);
-    res.json({
-        gifters: list,
-        total: gifters.size,
-        donors: donors.size,
-        totalGifts: totalGifts
-    });
+    res.json({ gifters: list, donors: donors.size });
 });
 
 app.get('/search/:username', (req, res) => {
     const username = req.params.username.replace(/^@/, '').trim();
     const gifter = gifters.get(username);
-    const donor = donors.get(username);
-    
     res.json({
         username: username,
-        nickname: gifter?.nickname || donor?.nickname || username,
-        avatar: null,
-        found: !!gifter || !!donor,
-        totalGifts: gifter?.totalGifts || donor?.totalGifts || 0,
-        isDonor: !!(gifter?.isDonor || donor)
+        found: !!gifter,
+        totalGifts: gifter?.totalGifts || 0,
+        isDonor: gifter?.isDonor || false
     });
 });
 
@@ -323,44 +278,38 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ============ WEBSOCKET PARA CLIENTES ============
+// WebSocket
 wss.on('connection', (ws) => {
-    console.log('📱 Cliente frontend conectado');
+    console.log('📱 Cliente conectado');
     clients.add(ws);
     
-    // Enviar estado actual
     ws.send(JSON.stringify({
         type: 'connection_status',
         connected: activeConnection?.isConnected || false,
         username: currentUsername
     }));
     
-    // Enviar lista actual de gifters
-    const list = Array.from(gifters.values()).sort((a, b) => b.totalGifts - a.totalGifts);
     ws.send(JSON.stringify({
         type: 'viewers_update',
-        data: list,
+        data: Array.from(gifters.values()),
         total: gifters.size,
         donors: donors.size
     }));
     
     ws.on('close', () => {
-        console.log('📱 Cliente frontend desconectado');
+        console.log('📱 Cliente desconectado');
         clients.delete(ws);
     });
 });
 
-// ============ INICIAR SERVIDOR ============
 server.listen(PORT, () => {
     console.log(`\n${'='.repeat(50)}`);
-    console.log(`🚀 SERVIDOR TIKTOK LIVE - VERSIÓN 2.0.0`);
+    console.log(`🚀 SERVIDOR TIKTOK LIVE`);
     console.log(`${'='.repeat(50)}`);
     console.log(`📡 Puerto: ${PORT}`);
-    console.log(`🌐 Abre: http://localhost:${PORT}`);
-    console.log(`\n✨ CONFIGURACIÓN CORRECTA`);
-    console.log(`📌 Conecta a un usuario que esté EN VIVO en TikTok`);
-    console.log(`🎁 Los regalos aparecerán en tiempo real`);
-    console.log(`🏆 Donadores: usuarios con 100+ diamantes acumulados`);
-    console.log(`🧹 Limpieza de inactivos: cada 2 minutos`);
+    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(`\n✨ Conecta a un usuario EN VIVO`);
+    console.log(`📌 Ejemplo: soygabrielbeato, elmattriste, ibai`);
+    console.log(`🎁 Los regalos aparecerán en consola y frontend`);
     console.log(`${'='.repeat(50)}\n`);
 });
