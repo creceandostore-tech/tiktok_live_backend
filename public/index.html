@@ -273,7 +273,7 @@
       color: #666;
     }
 
-    /* Consola - SIN AUTO-SCROLL */
+    /* Consola */
     .live-console {
       background: #1e1e1e;
       border-radius: 12px;
@@ -330,7 +330,7 @@
     .log-error { color: #f48771; }
     .log-timestamp { color: #858585; margin-right: 6px; font-size: 9px; }
 
-    /* MODAL DE CONFIRMACIÓN MEJORADO */
+    /* MODAL DE CONFIRMACIÓN */
     .modal {
       display: none;
       position: fixed;
@@ -444,7 +444,265 @@
       transform: scale(1.02);
     }
 
-    /* Notificación de regalo */
+    /* TICKET DE COMPROBANTE - ESTILO REALISTA */
+    .receipt {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1200;
+      align-items: center;
+      justify-content: center;
+    }
+    .receipt-content {
+      background: white;
+      max-width: 360px;
+      width: 90%;
+      border-radius: 32px;
+      overflow: hidden;
+      animation: slideUp 0.4s ease;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    /* Encabezado del ticket */
+    .receipt-header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      padding: 24px 20px;
+      text-align: center;
+      color: white;
+      position: relative;
+    }
+    .receipt-header .success-icon {
+      width: 64px;
+      height: 64px;
+      background: #28a745;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 36px;
+      box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+    }
+    .receipt-header h2 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .receipt-header p {
+      font-size: 13px;
+      opacity: 0.8;
+      letter-spacing: 0.5px;
+    }
+    /* Cuerpo del ticket */
+    .receipt-body {
+      padding: 20px;
+      background: #ffffff;
+    }
+    /* Información de la transacción */
+    .transaction-info {
+      background: #f8f9fa;
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px dashed #e0e0e0;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-label {
+      font-size: 13px;
+      color: #6c757d;
+      font-weight: 500;
+    }
+    .info-value {
+      font-weight: 700;
+      color: #212529;
+      font-size: 14px;
+    }
+    .info-value.highlight {
+      color: #fe2c55;
+      font-size: 18px;
+    }
+    .info-value.monospace {
+      font-family: monospace;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    /* Detalle de créditos */
+    .credits-detail {
+      background: linear-gradient(135deg, #fff5f5, #ffe8e8);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+      border: 1px solid #ffe0e0;
+    }
+    .credits-amount {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fe2c55;
+    }
+    .credits-amount span {
+      font-size: 20px;
+    }
+    .credits-label {
+      font-size: 12px;
+      color: #fe2c55;
+      margin-top: 4px;
+    }
+    /* Tarjeta de pago */
+    .payment-card {
+      background: linear-gradient(135deg, #1e2a3a, #0f1722);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .payment-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .payment-icons {
+      display: flex;
+      align-items: center;
+    }
+    .mastercard-red {
+      width: 28px;
+      height: 28px;
+      background: #eb001b;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .mastercard-yellow {
+      width: 28px;
+      height: 28px;
+      background: #f79e1b;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: -12px;
+    }
+    .payment-text {
+      color: white;
+    }
+    .payment-text .card-type {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+    .payment-text .card-number {
+      font-family: monospace;
+      font-size: 14px;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+    .payment-amount {
+      color: white;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    /* Footer del ticket */
+    .receipt-footer {
+      background: #f8f9fa;
+      padding: 16px 20px;
+      text-align: center;
+      border-top: 1px dashed #dee2e6;
+    }
+    .transaction-id {
+      font-family: monospace;
+      font-size: 11px;
+      color: #6c757d;
+      margin-bottom: 8px;
+    }
+    .transaction-date {
+      font-size: 11px;
+      color: #adb5bd;
+      margin-bottom: 12px;
+    }
+    .btn-close-receipt {
+      width: 100%;
+      padding: 14px;
+      background: #fe2c55;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-close-receipt:hover {
+      background: #e8254a;
+      transform: scale(1.02);
+    }
+    .footer-note {
+      font-size: 10px;
+      color: #adb5bd;
+      margin-top: 10px;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading-card {
+      background: white;
+      border-radius: 28px;
+      max-width: 320px;
+      width: 90%;
+      padding: 32px;
+      text-align: center;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #fe2c55;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .step {
+      font-size: 11px;
+      padding: 6px 0;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step.active { color: #fe2c55; }
+    .step.done { color: #28a745; }
+
     .gift-notification {
       position: fixed;
       top: 20px;
@@ -520,106 +778,6 @@
       font-weight: 600;
       font-size: 9px;
     }
-
-    /* Loading y Receipt */
-    .loading-overlay, .receipt {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px);
-      z-index: 1200;
-      align-items: center;
-      justify-content: center;
-    }
-    .loading-card, .receipt-content {
-      background: white;
-      border-radius: 28px;
-      max-width: 320px;
-      width: 90%;
-      padding: 32px;
-      text-align: center;
-    }
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #fe2c55;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .step {
-      font-size: 11px;
-      padding: 6px 0;
-      color: #aaa;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .step.active { color: #fe2c55; }
-    .step.done { color: #28a745; }
-    .receipt-icon {
-      width: 60px;
-      height: 60px;
-      background: #28a745;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-      font-size: 32px;
-      color: white;
-    }
-    .receipt-title {
-      font-size: 22px;
-      font-weight: 800;
-      color: #28a745;
-      margin-bottom: 16px;
-    }
-    .receipt-details {
-      background: #f8f8fa;
-      border-radius: 16px;
-      padding: 16px;
-      text-align: left;
-      margin: 16px 0;
-    }
-    .receipt-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .receipt-row:last-child { border-bottom: none; }
-    .receipt-label { color: #666; font-size: 13px; }
-    .receipt-value { font-weight: 700; color: #333; }
-    .receipt-total {
-      background: #fe2c55;
-      color: white;
-      padding: 12px;
-      border-radius: 12px;
-      margin-top: 12px;
-      font-weight: 800;
-    }
-    .btn-close {
-      width: 100%;
-      padding: 14px;
-      background: #fe2c55;
-      color: white;
-      border: none;
-      border-radius: 14px;
-      font-weight: 700;
-      margin-top: 12px;
-      cursor: pointer;
-    }
-    datalist { background: white; border-radius: 12px; }
 
     .console-content::-webkit-scrollbar {
       width: 4px;
@@ -734,7 +892,7 @@
 
 <div id="giftNotificationContainer"></div>
 
-<!-- MODAL DE CONFIRMACIÓN MEJORADO -->
+<!-- MODAL DE CONFIRMACIÓN -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -742,9 +900,7 @@
       <p>Revisa los detalles antes de continuar</p>
     </div>
     <div class="modal-body">
-      <div class="transaction-details" id="confirmDetails">
-        <!-- Se llena con JS -->
-      </div>
+      <div class="transaction-details" id="confirmDetails"></div>
       <div class="payment-method-modal">
         <div class="card-info">
           <div class="card-icons">
@@ -765,7 +921,7 @@
   </div>
 </div>
 
-<!-- Loading -->
+<!-- LOADING -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
@@ -780,13 +936,65 @@
   </div>
 </div>
 
-<!-- Receipt -->
+<!-- TICKET DE COMPROBANTE MEJORADO -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
-    <div class="receipt-icon">✓</div>
-    <div class="receipt-title">¡Pago Exitoso!</div>
-    <div class="receipt-details" id="receiptDetails"></div>
-    <button class="btn-close" id="closeReceiptBtn">Cerrar</button>
+    <div class="receipt-header">
+      <div class="success-icon">✓</div>
+      <h2>¡Pago Exitoso!</h2>
+      <p>Transacción completada</p>
+    </div>
+    <div class="receipt-body">
+      <div class="transaction-info">
+        <div class="info-row">
+          <span class="info-label">Usuario destino</span>
+          <span class="info-value" id="receiptUsername">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Créditos enviados</span>
+          <span class="info-value highlight" id="receiptCoins">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Valor</span>
+          <span class="info-value" id="receiptAmount">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Comisión (6%)</span>
+          <span class="info-value" id="receiptFee">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Total pagado</span>
+          <span class="info-value highlight" id="receiptTotal">-</span>
+        </div>
+      </div>
+      
+      <div class="credits-detail">
+        <div class="credits-amount">
+          <span id="receiptCoinsBig">-</span> 🪙
+        </div>
+        <div class="credits-label">Créditos transferidos</div>
+      </div>
+      
+      <div class="payment-card">
+        <div class="payment-left">
+          <div class="payment-icons">
+            <span class="mastercard-red"></span>
+            <span class="mastercard-yellow"></span>
+          </div>
+          <div class="payment-text">
+            <div class="card-type">Mastercard</div>
+            <div class="card-number">•••• 6789</div>
+          </div>
+        </div>
+        <div class="payment-amount" id="receiptTotalSmall">-</div>
+      </div>
+    </div>
+    <div class="receipt-footer">
+      <div class="transaction-id" id="receiptTransactionId">-</div>
+      <div class="transaction-date" id="receiptDate">-</div>
+      <button class="btn-close-receipt" id="closeReceiptBtn">Cerrar</button>
+      <div class="footer-note">Comprobante de transferencia Nija Coin</div>
+    </div>
   </div>
 </div>
 
@@ -813,7 +1021,6 @@
   function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
   function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
 
-  // Console log SIN auto-scroll forzado
   function addConsoleLog(message, type = 'info') {
     const consoleContent = document.getElementById('consoleContent');
     const logEntry = document.createElement('div');
@@ -911,20 +1118,27 @@
     }
   }
 
-  function generateTransactionId() { return 'TXN' + Date.now() + Math.floor(Math.random() * 10000); }
+  function generateTransactionId() { 
+    return 'NJC-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+  }
 
   function showReceipt(username, amount, coins, fee, total, transactionId) {
-    const receiptDetails = document.getElementById('receiptDetails');
     const now = new Date();
-    receiptDetails.innerHTML = `
-      <div class="receipt-row"><span class="receipt-label">Usuario destino</span><span class="receipt-value">@${username}</span></div>
-      <div class="receipt-row"><span class="receipt-label">Cantidad de créditos</span><span class="receipt-value">${fmtCoins(coins)} 🪙</span></div>
-      <div class="receipt-row"><span class="receipt-label">Valor</span><span class="receipt-value">${fmtUSD(amount)}</span></div>
-      <div class="receipt-row"><span class="receipt-label">Comisión (6%)</span><span class="receipt-value">${fmtUSD(fee)}</span></div>
-      <div class="receipt-row"><span class="receipt-label">Total pagado</span><span class="receipt-value">${fmtUSD(total)}</span></div>
-      <div class="receipt-row"><span class="receipt-label">ID Transacción</span><span class="receipt-value">${transactionId}</span></div>
-      <div class="receipt-total">Transferencia completada ✓</div>
-    `;
+    const formattedDate = now.toLocaleString('es-ES', { 
+      day: '2-digit', month: '2-digit', year: 'numeric', 
+      hour: '2-digit', minute: '2-digit', second: '2-digit' 
+    });
+    
+    document.getElementById('receiptUsername').textContent = `@${username}`;
+    document.getElementById('receiptCoins').innerHTML = `${fmtCoins(coins)} 🪙`;
+    document.getElementById('receiptAmount').textContent = fmtUSD(amount);
+    document.getElementById('receiptFee').textContent = fmtUSD(fee);
+    document.getElementById('receiptTotal').textContent = fmtUSD(total);
+    document.getElementById('receiptCoinsBig').innerHTML = fmtCoins(coins);
+    document.getElementById('receiptTotalSmall').textContent = fmtUSD(total);
+    document.getElementById('receiptTransactionId').textContent = `ID: ${transactionId}`;
+    document.getElementById('receiptDate').textContent = formattedDate;
+    
     document.getElementById('receiptModal').style.display = 'flex';
   }
 
@@ -964,7 +1178,6 @@
     const total = selectedUsd + fee;
     pendingTransaction = { username, amount: selectedUsd, coins: selectedCoins, fee, total, transactionId: generateTransactionId() };
     
-    // Llenar modal de confirmación mejorado
     const confirmDetails = document.getElementById('confirmDetails');
     confirmDetails.innerHTML = `
       <div class="detail-row">
@@ -999,7 +1212,14 @@
       showLoadingAnimation(() => {
         balance -= pendingTransaction.coins;
         updateBalanceUI();
-        showReceipt(pendingTransaction.username, pendingTransaction.amount, pendingTransaction.coins, pendingTransaction.fee, pendingTransaction.total, pendingTransaction.transactionId);
+        showReceipt(
+          pendingTransaction.username, 
+          pendingTransaction.amount, 
+          pendingTransaction.coins, 
+          pendingTransaction.fee, 
+          pendingTransaction.total, 
+          pendingTransaction.transactionId
+        );
         addConsoleLog(`💸 TRANSACCIÓN: Enviados ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`, 'success');
         pendingTransaction = null;
       });
@@ -1172,4 +1392,4 @@
   addConsoleLog('🚀 Aplicación iniciada - Esperando eventos en tiempo real', 'success');
 </script>
 </body>
-          </html>
+  </html>
