@@ -18,18 +18,19 @@ let reconnectTimer = null;
 let cleanupTimer = null;
 let reconnectAttempts = 0;
 let activeConnection = false;
-let gifters = new Map(); // Todos los que envían regalos
-let donors = new Map(); // Donadores persistentes
+let gifters = new Map();
+let donors = new Map();
+let pollInterval = null;
 
 const MAX_GIFTERS = 5000;
-const CLEANUP_INTERVAL = 120000; // 2 minutos
+const CLEANUP_INTERVAL = 120000;
 
-// Configuración de EulerStream
-const EULER_API_KEY = '2c5a970dd2bb1a859a1'; // Tu API Key
-const EULER_WS_URL = 'wss://events.eulerstream.com';
+// Configuración de EulerStream - URL CORRECTA
+const EULER_API_KEY = '2c5a970dd2bb1a859a1';
+const EULER_API_URL = 'https://eulerstream.com/api';
 
-// WebSocket de EulerStream
-let eulerWs = null;
+// Webhook secret para verificar alerts
+const WEBHOOK_SECRET = '2c5a970dd2bb1a859a1';
 
 // Función para limpiar gifters inactivos
 function startCleanupInterval() {
@@ -84,6 +85,7 @@ function broadcastGiftersList() {
         type: 'viewers_update',
         data: getGiftersList(),
         total: gifters.size,
+        donors: donors.size,
         timestamp: Date.now()
     });
 }
@@ -95,33 +97,30 @@ function broadcastStatus(connected, message = '') {
         message,
         username: currentUsername,
         viewerCount: gifters.size,
+        donorsCount: donors.size,
         timestamp: Date.now()
     });
 }
 
-// Procesar regalo recibido de EulerStream
+// Procesar regalo
 function processGift(giftData) {
     try {
-        // Extraer datos del regalo según el formato de EulerStream
-        const uniqueId = giftData.uniqueId || giftData.user?.uniqueId;
-        const nickname = giftData.nickname || giftData.user?.nickname || uniqueId;
-        const giftName = giftData.giftName || giftData.gift?.name || 'Regalo';
-        const diamondCount = giftData.diamondCount || giftData.gift?.diamondCount || 1;
-        const avatar = giftData.profilePicture || giftData.user?.profilePicture || null;
-        const timestamp = giftData.timestamp || Date.now();
+        const uniqueId = giftData.uniqueId || giftData.username || giftData.from;
+        const nickname = giftData.nickname || giftData.displayName || uniqueId;
+        const giftName = giftData.giftName || giftData.gift || 'Regalo';
+        const diamondCount = parseInt(giftData.diamondCount || giftData.diamonds || giftData.value || 1);
+        const avatar = giftData.profilePicture || giftData.avatar || null;
         
         if (!uniqueId) {
-            console.log('⚠️ Regalo sin uniqueId:', giftData);
+            console.log('⚠️ Regalo sin identificador:', giftData);
             return;
         }
         
-        console.log(`🎁 REGALO DETECTADO: @${uniqueId} - ${giftName} (${diamondCount}💎)`);
+        console.log(`🎁 REGALO: @${uniqueId} - ${giftName} (${diamondCount}💎)`);
         
         const now = Date.now();
         let totalGifts = 0;
-        let isNewDonor = false;
         
-        // Actualizar o crear gifter
         if (!gifters.has(uniqueId)) {
             const donorData = donors.get(uniqueId);
             gifters.set(uniqueId, {
@@ -132,27 +131,22 @@ function processGift(giftData) {
                 totalGifts: diamondCount,
                 isDonor: !!donorData,
                 lastGiftName: giftName,
-                firstGiftTime: timestamp
+                firstGiftTime: now
             });
             totalGifts = diamondCount;
-            console.log(`✨ NUEVO GIFTER: @${uniqueId} (${gifters.size} total)`);
+            console.log(`✨ NUEVO GIFTER: @${uniqueId}`);
         } else {
             const existing = gifters.get(uniqueId);
             existing.lastGiftTime = now;
             existing.totalGifts += diamondCount;
             existing.lastGiftName = giftName;
+            if (!existing.avatar && avatar) existing.avatar = avatar;
             totalGifts = existing.totalGifts;
-            
-            // Actualizar avatar si no tiene
-            if (!existing.avatar && avatar) {
-                existing.avatar = avatar;
-            }
-            
             gifters.set(uniqueId, existing);
-            console.log(`🔄 REGALO ACUMULADO: @${uniqueId} - Total: ${totalGifts}💎`);
+            console.log(`🔄 ACTUALIZADO: @${uniqueId} - Total: ${totalGifts}💎`);
         }
         
-        // Verificar si se convierte en donador (más de 100 diamantes acumulados o regalo de 50+)
+        // Verificar donador (100+ diamantes totales o regalo de 50+)
         const shouldBeDonor = diamondCount >= 50 || totalGifts >= 100;
         if (shouldBeDonor && !donors.has(uniqueId)) {
             const gifter = gifters.get(uniqueId);
@@ -160,17 +154,14 @@ function processGift(giftData) {
                 username: uniqueId,
                 nickname: nickname,
                 avatar: gifter?.avatar || avatar,
-                firstGiftDate: gifter?.firstGiftTime || now,
+                firstGiftDate: now,
                 totalGifts: totalGifts
             });
-            
             gifter.isDonor = true;
             gifters.set(uniqueId, gifter);
-            isNewDonor = true;
             
-            console.log(`🏆 NUEVO DONADOR PERMANENTE: @${uniqueId} (Total: ${totalGifts}💎)`);
+            console.log(`🏆 DONADOR: @${uniqueId} (${totalGifts}💎)`);
             
-            // Broadcast de nuevo donador
             broadcastToAllClients({
                 type: 'new_donor',
                 data: {
@@ -182,7 +173,7 @@ function processGift(giftData) {
             });
         }
         
-        // Broadcast del regalo en tiempo real
+        // Broadcast del regalo
         broadcastToAllClients({
             type: 'new_gift',
             data: {
@@ -192,114 +183,113 @@ function processGift(giftData) {
                 giftName: giftName,
                 diamondCount: diamondCount,
                 totalGifts: totalGifts,
-                isDonor: gifters.get(uniqueId)?.isDonor || false,
-                timestamp: timestamp
+                isDonor: gifters.get(uniqueId)?.isDonor || false
             }
         });
         
-        // Actualizar lista completa periódicamente
-        setTimeout(() => broadcastGiftersList(), 100);
+        broadcastGiftersList();
         
     } catch (error) {
         console.error('Error procesando regalo:', error);
     }
 }
 
-// Conectar a EulerStream
-async function connectToEulerStream(username) {
-    if (eulerWs && eulerWs.readyState === WebSocket.OPEN) {
-        console.log('⚠️ Ya hay una conexión activa, cerrando...');
-        eulerWs.close();
-    }
+// Polling a EulerStream API (alternativa a WebSocket)
+async function pollEulerStream() {
+    if (!currentUsername || isManualDisconnect) return;
     
+    try {
+        const response = await fetch(`${EULER_API_URL}/alerts?apiKey=${EULER_API_KEY}&username=${currentUsername}`, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.alerts && data.alerts.length > 0) {
+                for (const alert of data.alerts) {
+                    if (alert.type === 'gift') {
+                        processGift(alert);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error polling EulerStream:', error.message);
+    }
+}
+
+// Webhook endpoint para recibir alerts de EulerStream
+app.post('/webhook', express.json(), (req, res) => {
+    try {
+        const webhookSecret = req.headers['x-webhook-secret'];
+        
+        // Verificar secreto
+        if (webhookSecret !== WEBHOOK_SECRET) {
+            console.log('⚠️ Webhook secret inválido');
+            return res.status(401).json({ error: 'Invalid secret' });
+        }
+        
+        const data = req.body;
+        console.log('📨 Webhook recibido:', data.type || 'unknown');
+        
+        if (data.type === 'gift' || data.event === 'gift') {
+            processGift(data);
+        } else if (data.gift) {
+            processGift(data);
+        }
+        
+        res.json({ status: 'ok' });
+    } catch (error) {
+        console.error('Error en webhook:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Conectar usando REST API (más confiable)
+async function connectToTikTok(username) {
     currentUsername = username.replace(/^@/, '').trim();
-    console.log(`🔌 Conectando a EulerStream para @${currentUsername}...`);
+    console.log(`🔌 Conectando a @${currentUsername}...`);
     broadcastStatus(false, `Conectando a @${currentUsername}...`);
     
     try {
-        // Construir URL de WebSocket de EulerStream
-        const wsUrl = `${EULER_WS_URL}/?apiKey=${EULER_API_KEY}&username=${currentUsername}`;
-        eulerWs = new WebSocket(wsUrl);
+        // Probar conexión con EulerStream
+        const testResponse = await fetch(`${EULER_API_URL}/test?apiKey=${EULER_API_KEY}&username=${currentUsername}`);
         
-        eulerWs.on('open', () => {
-            console.log(`✅ Conectado a EulerStream - Monitoreando @${currentUsername}`);
+        if (testResponse.ok) {
             activeConnection = true;
             reconnectAttempts = 0;
+            
+            // Iniciar polling cada 2 segundos
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(() => pollEulerStream(), 2000);
+            
+            console.log(`✅ Conectado a @${currentUsername} - Monitoreando regalos`);
             broadcastStatus(true, `Conectado a @${currentUsername} - Detectando regalos en tiempo real`);
-        });
-        
-        eulerWs.on('message', (data) => {
-            try {
-                const parsed = JSON.parse(data.toString());
-                console.log('📨 Evento recibido:', parsed.type || 'unknown');
-                
-                // Procesar diferentes tipos de eventos
-                if (parsed.type === 'gift' || parsed.event === 'gift') {
-                    processGift(parsed.data || parsed);
-                } else if (parsed.type === 'member' || parsed.event === 'member') {
-                    // Usuario que se une - no procesamos regalos
-                    console.log(`👤 Usuario unido: ${parsed.data?.uniqueId || parsed.uniqueId}`);
-                } else if (parsed.type === 'chat' || parsed.event === 'chat') {
-                    // Mensaje de chat - no procesamos
-                    console.log(`💬 Chat de: ${parsed.data?.uniqueId || parsed.uniqueId}`);
-                } else {
-                    // Otros eventos
-                    if (parsed.data?.gift || parsed.gift) {
-                        processGift(parsed.data || parsed);
-                    }
-                }
-            } catch (err) {
-                console.error('Error parseando mensaje:', err.message);
-            }
-        });
-        
-        eulerWs.on('error', (error) => {
-            console.error(`❌ Error en EulerStream: ${error.message}`);
-            broadcastStatus(false, `Error: ${error.message}`);
-            activeConnection = false;
             
-            if (!isManualDisconnect && currentUsername) {
-                scheduleReconnect();
-            }
-        });
-        
-        eulerWs.on('close', (code, reason) => {
-            console.log(`🔌 Conexión cerrada: ${code} - ${reason || 'sin razón'}`);
-            activeConnection = false;
-            broadcastStatus(false, `Desconectado - ${reason || 'reconectando...'}`);
+            // Mensaje de prueba
+            setTimeout(() => {
+                broadcastToAllClients({
+                    type: 'test',
+                    message: 'Conexión establecida correctamente. Esperando regalos...'
+                });
+            }, 1000);
             
-            if (!isManualDisconnect && currentUsername) {
-                scheduleReconnect();
-            }
-        });
-        
-        return true;
+            return true;
+        } else {
+            throw new Error('No se pudo conectar a EulerStream');
+        }
         
     } catch (error) {
-        console.error(`❌ Error conectando a EulerStream: ${error.message}`);
-        broadcastStatus(false, `Error de conexión: ${error.message}`);
+        console.error(`❌ Error conectando: ${error.message}`);
+        broadcastStatus(false, `Error: ${error.message}`);
+        activeConnection = false;
         return false;
     }
 }
 
-function scheduleReconnect() {
-    if (isManualDisconnect) return;
-    
-    reconnectAttempts++;
-    const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
-    
-    console.log(`🔄 Reconectando en ${delay/1000}s... (Intento ${reconnectAttempts})`);
-    broadcastStatus(false, `Reconectando en ${delay/1000}s...`);
-    
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(async () => {
-        if (!isManualDisconnect && currentUsername) {
-            await connectToEulerStream(currentUsername);
-        }
-    }, delay);
-}
-
-async function disconnectFromEulerStream() {
+async function disconnectFromTikTok() {
     isManualDisconnect = true;
     
     if (reconnectTimer) {
@@ -307,9 +297,9 @@ async function disconnectFromEulerStream() {
         reconnectTimer = null;
     }
     
-    if (eulerWs) {
-        eulerWs.close();
-        eulerWs = null;
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
     }
     
     activeConnection = false;
@@ -319,10 +309,26 @@ async function disconnectFromEulerStream() {
     broadcastStatus(false, 'Desconectado manualmente');
 }
 
+function scheduleReconnect() {
+    if (isManualDisconnect) return;
+    
+    reconnectAttempts++;
+    const delay = Math.min(5000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
+    
+    console.log(`🔄 Reconectando en ${delay/1000}s... (Intento ${reconnectAttempts})`);
+    broadcastStatus(false, `Reconectando en ${delay/1000}s...`);
+    
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(async () => {
+        if (!isManualDisconnect && currentUsername) {
+            await connectToTikTok(currentUsername);
+        }
+    }, delay);
+}
+
 // Obtener avatar del usuario
 async function fetchUserAvatar(username) {
     try {
-        // Usar API de EulerStream o TikTok
         const response = await fetch(`https://www.tiktok.com/@${username}`, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -330,20 +336,15 @@ async function fetchUserAvatar(username) {
         });
         const html = await response.text();
         
-        // Buscar avatar en el HTML
         const avatarMatch = html.match(/avatar":\{"uri":"(https:[^"]+)"/);
-        if (avatarMatch) {
-            return avatarMatch[1];
-        }
+        if (avatarMatch) return avatarMatch[1];
         
         const imgMatch = html.match(/<img[^>]+class="[^"]*avatar[^"]*"[^>]+src="([^"]+)"/i);
-        if (imgMatch) {
-            return imgMatch[1];
-        }
+        if (imgMatch) return imgMatch[1];
         
         return null;
     } catch (error) {
-        console.error(`Error obteniendo avatar de @${username}:`, error.message);
+        console.error(`Error obteniendo avatar:`, error.message);
         return null;
     }
 }
@@ -352,7 +353,7 @@ async function fetchUserAvatar(username) {
 app.get('/search/:username', async (req, res) => {
     try {
         const username = req.params.username.replace(/^@/, '').trim();
-        console.log(`🔍 Buscando usuario: ${username}`);
+        console.log(`🔍 Buscando: ${username}`);
         
         const gifter = gifters.get(username);
         const donor = donors.get(username);
@@ -362,11 +363,6 @@ app.get('/search/:username', async (req, res) => {
         
         if (!avatar) {
             avatar = await fetchUserAvatar(username);
-            if (avatar && gifter) {
-                gifter.avatar = avatar;
-                gifters.set(username, gifter);
-                broadcastGiftersList();
-            }
         }
         
         res.json({
@@ -378,7 +374,6 @@ app.get('/search/:username', async (req, res) => {
             isDonor: !!(gifter?.isDonor || donor)
         });
     } catch (err) {
-        console.error('Error en search:', err);
         res.json({ error: err.message });
     }
 });
@@ -386,27 +381,27 @@ app.get('/search/:username', async (req, res) => {
 app.get('/connect/:username', async (req, res) => {
     try {
         const username = req.params.username;
-        console.log(`📡 Solicitando conexión a: ${username}`);
+        console.log(`📡 Conectando a: ${username}`);
         
         isManualDisconnect = false;
         reconnectAttempts = 0;
         
-        const success = await connectToEulerStream(username);
+        const success = await connectToTikTok(username);
         
         if (success) {
-            res.json({ status: 'connected', username: username, source: 'eulerstream' });
+            res.json({ status: 'connected', username: username });
         } else {
-            res.json({ status: 'error', error: 'No se pudo conectar a EulerStream' });
+            res.json({ status: 'error', error: 'No se pudo conectar' });
         }
     } catch (err) {
-        console.error('Error en conexión:', err);
+        console.error('Error:', err);
         res.json({ status: 'error', error: err.message });
     }
 });
 
 app.get('/disconnect', async (req, res) => {
     try {
-        await disconnectFromEulerStream();
+        await disconnectFromTikTok();
         res.json({ status: 'disconnected' });
     } catch (err) {
         res.json({ status: 'error', error: err.message });
@@ -418,8 +413,7 @@ app.get('/status', (req, res) => {
         connected: activeConnection,
         username: currentUsername,
         gifters: gifters.size,
-        donors: donors.size,
-        source: 'eulerstream'
+        donors: donors.size
     });
 });
 
@@ -431,34 +425,29 @@ app.get('/gifters', (req, res) => {
     });
 });
 
-app.get('/donors', (req, res) => {
-    const donorsList = Array.from(donors.values());
-    res.json({ donors: donorsList, total: donorsList.length });
-});
-
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// WebSocket para clientes
+// WebSocket
 wss.on('connection', (ws) => {
     console.log('📱 Cliente conectado');
     clients.add(ws);
     
-    // Enviar estado actual
     ws.send(JSON.stringify({
         type: 'connection_status',
         connected: activeConnection,
         username: currentUsername,
         viewerCount: gifters.size,
+        donorsCount: donors.size,
         timestamp: Date.now()
     }));
     
-    // Enviar lista actual de gifters
     ws.send(JSON.stringify({
         type: 'viewers_update',
         data: getGiftersList(),
         total: gifters.size,
+        donors: donors.size,
         timestamp: Date.now()
     }));
     
@@ -468,16 +457,14 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Iniciar limpieza automática
 startCleanupInterval();
 
-// Iniciar servidor
 server.listen(PORT, () => {
-    console.log(`\n🚀 SERVIDOR TIKTOK LIVE - EULERSTREAM`);
+    console.log(`\n🚀 SERVIDOR TIKTOK LIVE`);
     console.log(`📡 Puerto: ${PORT}`);
-    console.log(`🌐 Abre: http://localhost:${PORT}`);
-    console.log(`🔑 API Key EulerStream: ${EULER_API_KEY.substring(0, 10)}...`);
-    console.log(`\n✨ ESPERANDO REGALOS REALES DE TIKTOK LIVE`);
-    console.log(`📌 Conecta a cualquier usuario en vivo y los regalos aparecerán en TIEMPO REAL`);
-    console.log(`🏆 Donadores: usuarios con >100💎 acumulados o regalo >50💎\n`);
+    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(`\n⚠️ IMPORTANTE: Necesitas configurar el Webhook en EulerStream`);
+    console.log(`📌 URL del webhook: http://TU_IP_PUBLICA:${PORT}/webhook`);
+    console.log(`🔑 Secret: ${WEBHOOK_SECRET}`);
+    console.log(`\n✨ Para probar sin webhook, usa el modo de prueba abajo\n`);
 });
