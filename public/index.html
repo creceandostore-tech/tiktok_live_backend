@@ -3,95 +3,485 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Nija Coin - TikTok Integration</title>
+  <title>Nija Coin - TikTok Donors</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f5f5f7; padding: 20px; }
-    .container { max-width: 400px; margin: 0 auto; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-    .content { padding: 20px; }
-    .notifications-area { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 400px; z-index: 1000; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .gift-notification { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; border-radius: 50px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; pointer-events: auto; max-width: 90%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
-    .gift-notification.fade-out { animation: fadeOut 0.5s ease forwards; }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); visibility: hidden; } }
-    .gift-avatar { width: 36px; height: 36px; border-radius: 50%; background: #fe2c55; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .gift-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .gift-info { flex: 1; }
-    .gift-username { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .gift-realname { font-size: 11px; color: #aaa; font-weight: normal; }
-    .gift-detail { font-size: 12px; color: #ffd700; font-weight: 500; }
-    .auto-copy-badge { background: #28a745; border-radius: 20px; padding: 4px 8px; font-size: 10px; margin-left: 8px; }
-    .card { background: #f8f8fa; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
-    .profile-card { background: linear-gradient(135deg, #fff, #fff8f9); border: 1px solid #ffe0e5; }
-    .profile-info { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .profile-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #fe2c55, #ff4f7a); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .profile-details { flex: 1; }
-    .profile-name { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-    .verified-badge { background: #20d5ec; color: white; font-size: 12px; padding: 2px 6px; border-radius: 12px; }
-    .profile-username { font-size: 13px; color: #666; margin-top: 4px; }
-    .balance { background: #f0f0f0; border-radius: 12px; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-    .balance-label { font-size: 13px; color: #666; }
-    .balance-amount { font-size: 20px; font-weight: 800; color: #fe2c55; display: flex; align-items: center; gap: 6px; }
-    .coin-emoji { font-size: 22px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f7;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .content {
+      padding: 20px;
+    }
+    .card {
+      background: #f8f8fa;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .profile-card {
+      background: linear-gradient(135deg, #fff, #fff8f9);
+      border: 1px solid #ffe0e5;
+    }
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fe2c55, #ff4f7a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 24px;
+      overflow: hidden;
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-details {
+      flex: 1;
+    }
+    .profile-name {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .verified-badge {
+      background: #20d5ec;
+      color: white;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .profile-username {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .balance {
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .balance-label {
+      font-size: 13px;
+      color: #666;
+    }
+    .balance-amount {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fe2c55;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .coin-emoji {
+      font-size: 22px;
+    }
     .row { display: flex; gap: 10px; margin-bottom: 12px; }
-    .input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px; font-size: 14px; }
-    .input:focus { outline: none; border-color: #fe2c55; }
-    .btn { padding: 12px 20px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease; }
+    .input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+    .input:focus {
+      outline: none;
+      border-color: #fe2c55;
+    }
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
     .btn:active { transform: scale(0.97); }
     .btn-pink { background: #fe2c55; color: white; }
     .btn-red { background: #ff3b30; color: white; }
     .btn-small { padding: 8px 16px; font-size: 14px; }
-    .hit { display: flex; gap: 12px; align-items: center; padding: 12px; background: white; border-radius: 12px; border: 1px solid #eee; }
-    .hit-pic { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #ddd, #ccc); overflow: hidden; }
-    .hit-pic img { width: 100%; height: 100%; object-fit: cover; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .donor {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #eee;
+    }
+    .donor-pic {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ddd, #ccc);
+      overflow: hidden;
+    }
+    .donor-pic img { width: 100%; height: 100%; object-fit: cover; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .connected { background: #e6f7e6; color: #0a5c0a; }
     .disconnected { background: #ffe6e6; color: #c41e1e; }
-    .chat-log { background: #f0f0f0; border-radius: 12px; padding: 10px; height: 120px; overflow-y: auto; font-size: 12px; margin-top: 10px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-    .pack { background: white; border: 1px solid #eee; border-radius: 12px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s ease; }
+    .chat-log {
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 10px;
+      height: 120px;
+      overflow-y: auto;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .pack {
+      background: white;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
     .pack:hover { border-color: #fe2c55; transform: translateY(-2px); }
-    .pack.active { border-color: #fe2c55; background: #fff0f3; }
-    .pack-coins { font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .pack.active { border-color: #fe2c55; background: #fff0f3; box-shadow: 0 2px 8px rgba(254,44,85,0.2); }
+    .pack-coins {
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
     .pack-price { font-size: 13px; color: #666; margin-top: 5px; }
     .button-group { display: flex; gap: 10px; margin-top: 10px; }
-    .custom-box { text-align: center; padding: 12px; background: #fff; border-radius: 12px; border: 1px dashed #fe2c55; margin-top: 10px; cursor: pointer; color: #fe2c55; font-weight: 600; }
-    .discount-badge { background: #fe2c55; color: white; font-size: 11px; padding: 4px 8px; border-radius: 20px; display: inline-block; margin-bottom: 12px; }
-    .payment-method-small { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #1e2a3a, #0f1722); border-radius: 12px; padding: 10px 14px; margin-top: 12px; color: white; }
-    .card-info { display: flex; align-items: center; gap: 10px; }
-    .card-icons { display: flex; align-items: center; gap: 4px; }
-    .red-dot { width: 24px; height: 24px; background: #eb001b; border-radius: 50%; display: inline-block; }
-    .yellow-dot { width: 24px; height: 24px; background: #f79e1b; border-radius: 50%; display: inline-block; margin-left: -10px; }
-    .card-number-mini { font-family: monospace; font-size: 13px; letter-spacing: 1px; font-weight: 600; }
-    .invite-section { background: linear-gradient(135deg, #fff5e6, #ffe8d9); border-radius: 12px; padding: 12px; margin-top: 12px; text-align: center; }
-    .invite-title { font-weight: 700; color: #fe2c55; margin-bottom: 5px; }
-    .invite-text { font-size: 12px; color: #666; }
-    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-    .loading-card { background: white; border-radius: 24px; padding: 32px; text-align: center; max-width: 300px; width: 85%; animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-    .spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #fe2c55; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .loading-text { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px; }
-    .loading-subtext { font-size: 12px; color: #888; }
-    .loading-steps { margin-top: 16px; text-align: left; }
-    .step { font-size: 11px; padding: 6px 0; color: #aaa; display: flex; align-items: center; gap: 8px; }
-    .step.active { color: #fe2c55; font-weight: 500; }
-    .step.done { color: #28a745; }
-    .step-icon { width: 16px; text-align: center; }
-    .receipt { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1100; align-items: center; justify-content: center; }
-    .receipt-content { background: white; border-radius: 24px; max-width: 350px; width: 90%; padding: 24px; text-align: center; animation: slideUpReceipt 0.4s ease; }
-    @keyframes slideUpReceipt { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .receipt-icon { width: 60px; height: 60px; background: #28a745; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; color: white; }
-    .receipt-title { font-size: 24px; font-weight: 800; margin-bottom: 16px; color: #28a745; }
-    .receipt-details { background: #f8f8fa; border-radius: 16px; padding: 16px; text-align: left; margin: 16px 0; }
-    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .custom-box {
+      text-align: center;
+      padding: 12px;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px dashed #fe2c55;
+      margin-top: 10px;
+      cursor: pointer;
+      color: #fe2c55;
+      font-weight: 600;
+    }
+    .discount-badge {
+      background: #fe2c55;
+      color: white;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .payment-method-small {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #1e2a3a, #0f1722);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      color: white;
+    }
+    .card-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-icons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .mastercard-mini {
+      display: flex;
+      align-items: center;
+    }
+    .red-dot {
+      width: 24px;
+      height: 24px;
+      background: #eb001b;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .yellow-dot {
+      width: 24px;
+      height: 24px;
+      background: #f79e1b;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: -10px;
+    }
+    .card-number-mini {
+      font-family: monospace;
+      font-size: 13px;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .card-brand-text {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 24px;
+      max-width: 350px;
+      width: 90%;
+      padding: 24px;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    @keyframes modalIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .modal-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-confirm { background: #fe2c55; color: white; }
+    .btn-cancel { background: #f0f0f0; color: #666; }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1200;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    .loading-card {
+      background: white;
+      border-radius: 24px;
+      padding: 32px;
+      text-align: center;
+      max-width: 300px;
+      width: 85%;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #fe2c55;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .loading-subtext {
+      font-size: 12px;
+      color: #888;
+    }
+    .loading-steps {
+      margin-top: 16px;
+      text-align: left;
+    }
+    .step {
+      font-size: 11px;
+      padding: 6px 0;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step.active {
+      color: #fe2c55;
+      font-weight: 500;
+    }
+    .step.done {
+      color: #28a745;
+    }
+    .step-icon {
+      width: 16px;
+      text-align: center;
+    }
+    .receipt {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+    }
+    .receipt-content {
+      background: white;
+      border-radius: 24px;
+      max-width: 350px;
+      width: 90%;
+      padding: 24px;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .receipt-icon {
+      width: 60px;
+      height: 60px;
+      background: #28a745;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px;
+      color: white;
+    }
+    .receipt-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: #28a745;
+    }
+    .receipt-details {
+      background: #f8f8fa;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      margin: 16px 0;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
     .receipt-row:last-child { border-bottom: none; }
     .receipt-label { color: #666; font-size: 13px; }
     .receipt-value { font-weight: 700; color: #333; }
-    .receipt-total { background: #fe2c55; color: white; padding: 12px; border-radius: 12px; margin-top: 12px; font-weight: 800; }
-    .btn-close { width: 100%; padding: 12px; background: #fe2c55; color: white; border: none; border-radius: 12px; font-weight: 600; margin-top: 12px; cursor: pointer; }
-    datalist { background: white; border-radius: 12px; }
+    .receipt-total {
+      background: #fe2c55;
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      font-weight: 800;
+    }
+    .btn-close {
+      width: 100%;
+      padding: 12px;
+      background: #fe2c55;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+    .invite-section {
+      background: linear-gradient(135deg, #fff5e6, #ffe8d9);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      text-align: center;
+    }
+    .invite-title {
+      font-weight: 700;
+      color: #fe2c55;
+      margin-bottom: 5px;
+    }
+    .invite-text {
+      font-size: 12px;
+      color: #666;
+    }
+    .donors-count {
+      font-size: 12px;
+      color: #fe2c55;
+      margin-top: 5px;
+      font-weight: 600;
+    }
+    datalist {
+      background: white;
+      border-radius: 12px;
+    }
   </style>
 </head>
 <body>
@@ -99,46 +489,60 @@
   <div class="content">
     <div class="card profile-card">
       <div class="profile-info">
-        <div class="profile-avatar"><img src="https://i.postimg.cc/wBmKNX6X/unnamed-%281%29.png" alt="Nija Coin"></div>
+        <div class="profile-avatar">
+          <img src="https://i.postimg.cc/wBmKNX6X/unnamed-%281%29.png" alt="Nija Coin" onerror="this.src='https://via.placeholder.com/56x56?text=NC'">
+        </div>
         <div class="profile-details">
-          <div class="profile-name">Nija Coin <span class="verified-badge">✓ Verificado</span></div>
+          <div class="profile-name">
+            Nija Coin
+            <span class="verified-badge">✓ Verificado</span>
+          </div>
           <div class="profile-username">@ninjacoinoficial</div>
         </div>
       </div>
       <div class="balance">
         <span class="balance-label">Saldo disponible</span>
-        <span class="balance-amount"><span class="coin-emoji">🪙</span><span id="balanceAmount">78,000,000</span></span>
+        <span class="balance-amount">
+          <span class="coin-emoji">🪙</span>
+          <span id="balanceAmount">78,000,000</span>
+        </span>
       </div>
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
+      <div style="font-weight:600; margin-bottom:10px">Enviar Gift a Donador</div>
       <div class="row">
-        <input id="usernameInput" class="input" list="donorsList" placeholder="Usuario de TikTok" autocomplete="off" />
+        <input id="usernameInput" class="input" list="donorsList" placeholder="Usuario donador" autocomplete="off" />
         <datalist id="donorsList"></datalist>
         <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
-      <div class="hit">
-        <div class="hit-pic" id="hitPic"></div>
+      <div class="donor">
+        <div class="donor-pic" id="donorPic"></div>
         <div>
-          <div id="hitName" style="font-weight:600">Usuario</div>
+          <div id="donorName" style="font-weight:600">Donador</div>
           <div id="previewUser" style="font-size:12px; color:#888">No seleccionado</div>
         </div>
       </div>
-      <button id="sendGiftBtn" class="btn btn-pink btn-small" style="width:100%; margin-top:12px">Enviar Gift</button>
     </div>
 
     <div class="card">
       <div class="discount-badge">✨ Ahorra un 25% con una tarifa de servicio de terceros más baja ✨</div>
       <div class="grid" id="packsGrid"></div>
       <div class="custom-box" id="openCustom">✨ Personalizar ✨</div>
+      
       <div class="payment-method-small">
         <div class="card-info">
-          <div class="card-icons"><div class="red-dot"></div><div class="yellow-dot"></div></div>
+          <div class="card-icons">
+            <div class="mastercard-mini">
+              <span class="red-dot"></span>
+              <span class="yellow-dot"></span>
+            </div>
+          </div>
           <span class="card-brand-text">Mastercard</span>
         </div>
         <div class="card-number-mini">•••• 6789</div>
       </div>
+
       <div class="invite-section">
         <div class="invite-title">🎁 Invita y recibe hasta $150 por amigo</div>
         <div class="invite-text">¡Más amigos, más reembolsos!</div>
@@ -147,15 +551,17 @@
 
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-        <span>📱 TikTok Live</span>
+        <span>📱 TikTok Live - SOLO DONADORES</span>
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
-      <div class="row"><input id="tiktokUsername" class="input" placeholder="Usuario en vivo" /></div>
+      <div class="row">
+        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo" />
+      </div>
       <div class="button-group">
         <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
         <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
-      <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
+      <div id="liveDonorCount" class="donors-count"></div>
     </div>
 
     <div class="card">
@@ -164,194 +570,477 @@
         <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
         <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
       </div>
-      <div id="chatLog" class="chat-log">💬 Esperando comandos...</div>
+      <div id="chatLog" class="chat-log">💬 Esperando donadores...</div>
     </div>
   </div>
 </div>
 
-<div id="notificationsArea" class="notifications-area"></div>
-<div id="loadingOverlay" class="loading-overlay"><div class="loading-card"><div class="spinner"></div><div class="loading-text">Procesando transacción...</div><div class="loading-subtext">No cierres esta ventana</div><div class="loading-steps"><div class="step" id="step1"><span class="step-icon">○</span><span>Verificando datos de pago</span></div><div class="step" id="step2"><span class="step-icon">○</span><span>Conectando con Mastercard</span></div><div class="step" id="step3"><span class="step-icon">○</span><span>Autorizando transacción</span></div><div class="step" id="step4"><span class="step-icon">○</span><span>Confirmando envío</span></div></div></div></div>
-<div id="receiptModal" class="receipt"><div class="receipt-content"><div class="receipt-icon">✓</div><div class="receipt-title">¡Pago Exitoso!</div><div class="receipt-details" id="receiptDetails"></div><button class="btn-close" id="closeReceiptBtn">Cerrar</button></div></div>
+<div id="confirmModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:16px">Confirmar Envío</h3>
+    <p id="confirmMessage" style="margin-bottom:20px"></p>
+    <div class="payment-method-small" style="margin-bottom:16px; justify-content:center; gap:12px">
+      <div class="card-icons">
+        <div class="mastercard-mini">
+          <span class="red-dot"></span>
+          <span class="yellow-dot"></span>
+        </div>
+      </div>
+      <span class="card-brand-text">Mastercard</span>
+      <span class="card-number-mini">•••• 6789</span>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="cancelBtn">Cancelar</button>
+      <button class="btn-confirm" id="confirmBtn">Confirmar Pago</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="loading-text">Procesando transacción...</div>
+    <div class="loading-subtext">No cierres esta ventana</div>
+    <div class="loading-steps">
+      <div class="step" id="step1">
+        <span class="step-icon">○</span>
+        <span>Verificando datos de pago</span>
+      </div>
+      <div class="step" id="step2">
+        <span class="step-icon">○</span>
+        <span>Conectando con Mastercard</span>
+      </div>
+      <div class="step" id="step3">
+        <span class="step-icon">○</span>
+        <span>Autorizando transacción</span>
+      </div>
+      <div class="step" id="step4">
+        <span class="step-icon">○</span>
+        <span>Confirmando envío de créditos</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="receiptModal" class="receipt">
+  <div class="receipt-content">
+    <div class="receipt-icon">✓</div>
+    <div class="receipt-title">¡Pago Exitoso!</div>
+    <div class="receipt-details" id="receiptDetails"></div>
+    <button class="btn-close" id="closeReceiptBtn">Cerrar</button>
+  </div>
+</div>
 
 <script>
-  let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null;
-  let nextDonor = null;
-  let pendingGift = null;
-  
-  const packs = [{coins:30,usd:0.32},{coins:350,usd:3.65},{coins:700,usd:7.25},{coins:1400,usd:14.49},{coins:3500,usd:36.20}];
-  function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
-  function fmtUSD(n){ return 'US$'+Number(n).toFixed(2); }
-  function currentUser(){ return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
-  function updateBalanceUI(){ document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
-  function addChatLog(msg, isErr){ const log=document.getElementById('chatLog'), p=document.createElement('div'); p.textContent=msg; p.style.color=isErr?'#ff3b30':'#666'; p.style.fontSize='11px'; p.style.marginBottom='4px'; log.appendChild(p); log.scrollTop=log.scrollHeight; while(log.children.length>20) log.removeChild(log.firstChild); }
+  let balance = 78000000;
+  let selectedCoins = 350;
+  let selectedUsd = 3.65;
+  let currentDonorsMap = new Map();
+  let priorityDonors = new Set();
+  let ws = null;
+  let pendingTransaction = null;
 
-  // Mostrar ventana flotante con el siguiente donador
-  function showNextDonorNotification() {
-    if (!nextDonor) {
-      addChatLog(`⚠️ No hay próximo donador`, true);
-      return;
+  const cardLast4 = "6789";
+
+  const packs = [
+    {coins: 30, usd: 0.32, note: ""},
+    {coins: 350, usd: 3.65, note: ""},
+    {coins: 700, usd: 7.25, note: ""},
+    {coins: 1400, usd: 14.49, note: ""},
+    {coins: 3500, usd: 36.20, note: ""}
+  ];
+
+  function fmtCoins(n) { return Number(n).toLocaleString('es-ES'); }
+  function fmtUSD(n) { return 'US$' + Number(n).toFixed(2); }
+  function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
+  function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
+
+  function generateTransactionId() {
+    return 'TXN' + Date.now() + Math.floor(Math.random() * 10000);
+  }
+
+  function clearUserInput() {
+    document.getElementById('usernameInput').value = '';
+    document.getElementById('donorName').textContent = 'Donador';
+    document.getElementById('previewUser').textContent = 'No seleccionado';
+    document.getElementById('donorPic').innerHTML = '';
+    document.getElementById('donorPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+  }
+
+  function getSortedDonors() {
+    const donorsArray = Array.from(currentDonorsMap.values());
+    const priorityDonorsList = donorsArray.filter(d => priorityDonors.has(d.username));
+    const normalDonors = donorsArray.filter(d => !priorityDonors.has(d.username));
+    return [...priorityDonorsList, ...normalDonors];
+  }
+
+  function updateSuggestions() {
+    const datalist = document.getElementById('donorsList');
+    const sortedDonors = getSortedDonors();
+    datalist.innerHTML = '';
+    sortedDonors.forEach(donor => {
+      const option = document.createElement('option');
+      option.value = donor.username;
+      datalist.appendChild(option);
+    });
+    
+    const donorCountSpan = document.getElementById('liveDonorCount');
+    if(donorCountSpan) {
+      donorCountSpan.innerHTML = `🎁 ${sortedDonors.length} donadores en el live`;
     }
-    const { username, nickname, giftName, giftCount, avatarUrl } = nextDonor;
-    const area = document.getElementById('notificationsArea');
-    area.innerHTML = '';
-    const notification = document.createElement('div');
-    notification.className = 'gift-notification';
-    notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Envió ${giftName} x${giftCount} al live - Listo para enviar</div></div>`;
-    area.appendChild(notification);
-    document.getElementById('usernameInput').value = username;
+  }
+
+  function renderDonorSuggestions() {
+    updateSuggestions();
     updateUserViews();
-    addChatLog(`📋 Siguiente donador @${username} auto-copiado a la casilla`);
-    setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
-    nextDonor = null;
   }
 
-  // Guardar el donador que envió regalo (para mostrar DESPUÉS de mi envío)
-  function saveNextDonor(username, nickname, giftName, giftCount, avatarUrl) {
-    nextDonor = { username, nickname, giftName, giftCount, avatarUrl };
-    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Será el siguiente donador después de tu envío`);
-    if(!currentDonorsMap.has(username)){
-      currentDonorsMap.set(username, {username: username, nickname: nickname, avatar: avatarUrl});
-      updateDonorList(Array.from(currentDonorsMap.values()));
+  function updateUserViews() {
+    const username = currentUser();
+    const donorPic = document.getElementById('donorPic');
+    const donorName = document.getElementById('donorName');
+    const previewUser = document.getElementById('previewUser');
+    const found = currentDonorsMap.get(username);
+    if (username && found) {
+      donorName.textContent = found.nickname || username;
+      previewUser.textContent = `@${username}`;
+      if (found.avatar && found.avatar !== 'null') {
+        donorPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
+        donorPic.style.background = 'transparent';
+      } else {
+        donorPic.innerHTML = '';
+        donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+      }
+    } else if (username) {
+      donorName.textContent = username;
+      previewUser.textContent = `@${username}`;
+      donorPic.innerHTML = '';
+      donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+    } else {
+      donorName.textContent = 'Donador';
+      previewUser.textContent = 'No seleccionado';
+      donorPic.innerHTML = '';
+      donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     }
   }
 
-  function updateDonorList(donors){
-    currentDonorsMap.clear();
-    donors.forEach(d=>currentDonorsMap.set(d.username,d));
-    const datalist=document.getElementById('donorsList');
-    datalist.innerHTML='';
-    donors.forEach(d=>{const opt=document.createElement('option'); opt.value=d.username; datalist.appendChild(opt);});
-    document.getElementById('liveViewerCount').innerHTML=`🎁 ${donors.length} donadores`;
-    updateUserViews();
+  function addChatLog(msg, isErr = false) {
+    const log = document.getElementById('chatLog');
+    const p = document.createElement('div');
+    p.textContent = msg;
+    p.style.color = isErr ? '#ff3b30' : '#666';
+    p.style.fontSize = '11px';
+    p.style.marginBottom = '4px';
+    log.appendChild(p);
+    log.scrollTop = log.scrollHeight;
+    while(log.children.length > 20) log.removeChild(log.firstChild);
   }
 
-  function updateUserViews(){
-    const username=currentUser(), found=currentDonorsMap.get(username);
-    const hitPic=document.getElementById('hitPic'), hitName=document.getElementById('hitName'), previewUser=document.getElementById('previewUser');
-    if(username&&found){
-      hitName.textContent=found.nickname||username;
-      previewUser.textContent=`@${username}`;
-      if(found.avatar){ hitPic.innerHTML=`<img src="${found.avatar}">`; hitPic.style.background='transparent'; }
-      else{ hitPic.innerHTML=''; hitPic.style.background='linear-gradient(135deg,#ddd,#ccc)'; }
-    } else if(username){
-      hitName.textContent=username;
-      previewUser.textContent=`@${username}`;
-      hitPic.innerHTML='';
-    } else{
-      hitName.textContent='Usuario';
-      previewUser.textContent='No seleccionado';
-      hitPic.innerHTML='';
-    }
+  function showReceipt(username, amount, coins, fee, total, transactionId) {
+    const receiptDetails = document.getElementById('receiptDetails');
+    const now = new Date();
+    
+    receiptDetails.innerHTML = `
+      <div class="receipt-row">
+        <span class="receipt-label">Usuario destino</span>
+        <span class="receipt-value">@${username}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Cantidad de créditos</span>
+        <span class="receipt-value">${fmtCoins(coins)} 🪙</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Valor</span>
+        <span class="receipt-value">${fmtUSD(amount)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Comisión (6%)</span>
+        <span class="receipt-value">${fmtUSD(fee)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Total pagado</span>
+        <span class="receipt-value">${fmtUSD(total)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Tarjeta</span>
+        <span class="receipt-value">💳 Mastercard •••• ${cardLast4}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Fecha</span>
+        <span class="receipt-value">${now.toLocaleString()}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">ID Transacción</span>
+        <span class="receipt-value">${transactionId}</span>
+      </div>
+      <div class="receipt-total">
+        Transferencia completada ✓
+      </div>
+    `;
+    
+    document.getElementById('receiptModal').style.display = 'flex';
   }
 
-  function showLoadingAnimation(callback){
-    const overlay=document.getElementById('loadingOverlay'), steps=['step1','step2','step3','step4'];
-    let currentStep=0;
-    steps.forEach(step=>{const el=document.getElementById(step); el.className='step'; el.querySelector('.step-icon').textContent='○';});
-    overlay.style.display='flex';
-    function updateStep(){
-      if(currentStep<steps.length){
-        const stepEl=document.getElementById(steps[currentStep]);
-        stepEl.className='step active';
-        stepEl.querySelector('.step-icon').textContent='◐';
-        setTimeout(()=>{stepEl.className='step done'; stepEl.querySelector('.step-icon').textContent='✓'; currentStep++; updateStep();}, 500);
-      } else { setTimeout(()=>{overlay.style.display='none'; if(callback) callback();}, 300); }
+  function showLoadingAnimation(callback) {
+    const overlay = document.getElementById('loadingOverlay');
+    const steps = ['step1', 'step2', 'step3', 'step4'];
+    let currentStep = 0;
+    
+    steps.forEach(step => {
+      const el = document.getElementById(step);
+      el.className = 'step';
+      el.querySelector('.step-icon').textContent = '○';
+    });
+    
+    overlay.style.display = 'flex';
+    
+    function updateStep() {
+      if (currentStep < steps.length) {
+        const stepEl = document.getElementById(steps[currentStep]);
+        stepEl.className = 'step active';
+        stepEl.querySelector('.step-icon').textContent = '◐';
+        
+        setTimeout(() => {
+          stepEl.className = 'step done';
+          stepEl.querySelector('.step-icon').textContent = '✓';
+          currentStep++;
+          updateStep();
+        }, 1200);
+      } else {
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          if (callback) callback();
+        }, 500);
+      }
     }
+    
     updateStep();
   }
 
-  function showReceipt(username, amount, coins, fee, total, txId){
-    const details=document.getElementById('receiptDetails'), now=new Date();
-    details.innerHTML=`<div class="receipt-row"><span class="receipt-label">Usuario destino</span><span class="receipt-value">@${username}</span></div><div class="receipt-row"><span class="receipt-label">Créditos enviados</span><span class="receipt-value">${fmtCoins(coins)} 🪙</span></div><div class="receipt-row"><span class="receipt-label">Valor</span><span class="receipt-value">${fmtUSD(amount)}</span></div><div class="receipt-row"><span class="receipt-label">Comisión</span><span class="receipt-value">${fmtUSD(fee)}</span></div><div class="receipt-row"><span class="receipt-label">Total</span><span class="receipt-value">${fmtUSD(total)}</span></div><div class="receipt-row"><span class="receipt-label">Tarjeta</span><span class="receipt-value">💳 Mastercard •••• 6789</span></div><div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${now.toLocaleString()}</span></div><div class="receipt-row"><span class="receipt-label">ID</span><span class="receipt-value">${txId}</span></div><div class="receipt-total">Transferencia completada ✓</div>`;
-    document.getElementById('receiptModal').style.display='flex';
-  }
-
-  function processSend(){
-    const username=currentUser();
-    if(!username){ addChatLog('❌ Ingresa un username para enviar',true); return; }
-    if(selectedCoins>balance){ addChatLog(`❌ Saldo insuficiente: ${fmtCoins(balance)} 🪙`,true); return; }
-    const fee=selectedUsd*0.06, total=selectedUsd+fee, txId='TXN'+Date.now();
-    showLoadingAnimation(()=>{
-      balance-=selectedCoins;
-      updateBalanceUI();
-      showReceipt(username,selectedUsd,selectedCoins,fee,total,txId);
-      addChatLog(`✅ Enviado ${fmtCoins(selectedCoins)} 🪙 a @${username}`);
-      showNextDonorNotification();
-    });
-  }
-
-  function closeReceiptAndClear(){ 
-    document.getElementById('receiptModal').style.display='none'; 
-    addChatLog('✨ Comprobante cerrado ✨');
-  }
-
-  document.getElementById('searchUserBtn').onclick=async()=>{
-    const username=currentUser();
-    if(!username){ alert('Ingresa un username'); return; }
-    const btn=document.getElementById('searchUserBtn'), original=btn.textContent;
-    btn.textContent='Buscando...'; btn.disabled=true;
-    try{
-      const res=await fetch(`/search/${username}`), data=await res.json();
-      if(data.avatar) addChatLog(`✅ @${username} (${data.nickname}) - Foto encontrada`);
-      else if(data.found) addChatLog(`✅ @${username} es donador`);
-      else addChatLog(`⚠️ @${username} no es donador aún`);
-    }catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
-    finally{ btn.textContent=original; btn.disabled=false; }
-  };
-
-  function initWebSocket(){
-    const protocol=location.protocol==='https:'?'wss:':'ws:';
-    ws=new WebSocket(`${protocol}//${location.host}`);
-    ws.onopen=()=>addChatLog('✅ Conectado al servidor');
-    ws.onmessage=(e)=>{
-      try{
-        const data=JSON.parse(e.data);
-        if(data.type==='donors'){ updateDonorList(data.data); addChatLog(`🎁 ${data.data.length} donadores registrados`); }
-        else if(data.type==='connection_status'){
-          const badge=document.getElementById('connectionStatusBadge'), connectBtn=document.getElementById('connectTikTokBtn'), disconnectBtn=document.getElementById('disconnectTikTokBtn');
-          if(data.connected){ badge.className='status-badge connected'; badge.innerHTML='● Conectado'; connectBtn.style.display='none'; disconnectBtn.style.display='block'; addChatLog(`🎉 Conectado al live de @${data.username}`); }
-          else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
-        }
-        else if(data.type==='gift'){ 
-          addChatLog(`🎁 @${data.username} (${data.nickname}) envió ${data.giftName} x${data.giftCount} al live`);
-          saveNextDonor(data.username, data.nickname, data.giftName, data.giftCount, data.avatar);
-        }
-      }catch(e){ console.error(e); }
+  function processSend() {
+    const username = currentUser();
+    if (!username) {
+      addChatLog('❌ Ingresa un username de donador para enviar', true);
+      return false;
+    }
+    if (selectedCoins > balance) {
+      addChatLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, true);
+      return false;
+    }
+    
+    const fee = selectedUsd * 0.06;
+    const total = selectedUsd + fee;
+    
+    pendingTransaction = {
+      username: username,
+      amount: selectedUsd,
+      coins: selectedCoins,
+      fee: fee,
+      total: total,
+      transactionId: generateTransactionId()
     };
-    ws.onclose=()=>{ addChatLog('🔌 Desconectado, reconectando...',true); setTimeout(initWebSocket,3000); };
+    
+    document.getElementById('confirmMessage').innerHTML = `
+      <div style="text-align:left">
+        <div style="margin-bottom:8px"><strong>Enviar a:</strong> @${username}</div>
+        <div style="margin-bottom:8px"><strong>Créditos:</strong> ${fmtCoins(selectedCoins)} 🪙</div>
+        <div style="margin-bottom:8px"><strong>Valor:</strong> ${fmtUSD(selectedUsd)}</div>
+        <div><strong>Comisión:</strong> ${fmtUSD(fee)}</div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee"><strong>Total:</strong> ${fmtUSD(total)}</div>
+      </div>
+    `;
+    document.getElementById('confirmModal').style.display = 'flex';
+    return true;
   }
 
-  document.getElementById('connectTikTokBtn').onclick=async()=>{
-    const username=document.getElementById('tiktokUsername').value.trim();
-    if(!username){ alert('Ingresa un username de TikTok en vivo'); return; }
-    const btn=document.getElementById('connectTikTokBtn');
-    btn.textContent='Conectando...'; btn.disabled=true;
-    try{ const res=await fetch(`/connect/${username}`), data=await res.json(); if(data.status==='connected') addChatLog(`✅ Conectado a @${username}`); else addChatLog(`❌ Error: ${data.error}`,true); }
-    catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
-    finally{ btn.textContent='Conectar Live'; btn.disabled=false; }
+  function confirmSend() {
+    if (pendingTransaction) {
+      document.getElementById('confirmModal').style.display = 'none';
+      
+      showLoadingAnimation(() => {
+        balance -= pendingTransaction.coins;
+        updateBalanceUI();
+        
+        showReceipt(
+          pendingTransaction.username,
+          pendingTransaction.amount,
+          pendingTransaction.coins,
+          pendingTransaction.fee,
+          pendingTransaction.total,
+          pendingTransaction.transactionId
+        );
+        
+        addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`);
+        
+        pendingTransaction = null;
+      });
+    }
+  }
+
+  function closeReceiptAndClear() {
+    document.getElementById('receiptModal').style.display = 'none';
+    clearUserInput();
+    addChatLog('✨ Usuario limpiado. Puedes enviar otro gift ✨');
+  }
+
+  document.getElementById('searchUserBtn').onclick = async () => {
+    const username = currentUser();
+    if (!username) { alert('Ingresa un username de TikTok'); return; }
+    const btn = document.getElementById('searchUserBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Buscando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/search/${username}`);
+      const data = await res.json();
+      if (data.avatar) {
+        addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
+        if (currentDonorsMap.has(username)) {
+          currentDonorsMap.get(username).avatar = data.avatar;
+          currentDonorsMap.get(username).nickname = data.nickname;
+        } else {
+          currentDonorsMap.set(username, { username, nickname: data.nickname, avatar: data.avatar });
+        }
+        updateUserViews();
+      } else if (data.found) {
+        addChatLog(`✅ @${username} es un donador en el live`);
+      } else {
+        addChatLog(`⚠️ @${username} no es donador en el live actual`);
+      }
+    } catch(e) {
+      addChatLog(`❌ Error: ${e.message}`, true);
+    } finally {
+      btn.textContent = original;
+      btn.disabled = false;
+    }
   };
 
-  document.getElementById('disconnectTikTokBtn').onclick=async()=>{
-    const btn=document.getElementById('disconnectTikTokBtn');
-    btn.textContent='Desconectando...'; btn.disabled=true;
-    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); nextDonor = null; }
-    catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
-    finally{ btn.textContent='Desconectar'; btn.disabled=false; }
+  function initWebSocket() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${location.host}`);
+    ws.onopen = () => addChatLog('✅ Conectado al servidor de TikTok Live');
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'donors') {
+          currentDonorsMap.clear();
+          data.data.forEach(d => currentDonorsMap.set(d.username, d));
+          renderDonorSuggestions();
+          addChatLog(`🎁 ${data.data.length} donadores activos (total: ${data.total})`);
+        } else if (data.type === 'command') {
+          addChatLog(`📡 Comando recibido: ${data.command}`);
+        } else if (data.type === 'connection_status') {
+          const badge = document.getElementById('connectionStatusBadge');
+          const connectBtn = document.getElementById('connectTikTokBtn');
+          const disconnectBtn = document.getElementById('disconnectTikTokBtn');
+          if (data.connected) {
+            badge.className = 'status-badge connected';
+            badge.innerHTML = '● Conectado';
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = 'block';
+            addChatLog(`🎉 Conectado al live de @${data.username} - Mostrando SOLO donadores`);
+          } else {
+            badge.className = 'status-badge disconnected';
+            badge.innerHTML = '● Desconectado';
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+          }
+          if (data.message) addChatLog(data.message);
+        } else if (data.type === 'gift') {
+          const giftUser = data.username;
+          if (giftUser && currentDonorsMap.has(giftUser)) {
+            priorityDonors.add(giftUser);
+            addChatLog(`🎁 @${giftUser} envió un regalo`);
+            renderDonorSuggestions();
+          }
+        }
+      } catch(e) { console.error(e); }
+    };
+    ws.onclose = () => {
+      addChatLog('🔌 Desconectado del servidor, reconectando...', true);
+      setTimeout(initWebSocket, 3000);
+    };
+  }
+
+  document.getElementById('connectTikTokBtn').onclick = async () => {
+    const username = document.getElementById('tiktokUsername').value.trim();
+    if (!username) { alert('Ingresa el username de TikTok que está en vivo'); return; }
+    const btn = document.getElementById('connectTikTokBtn');
+    btn.textContent = 'Conectando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/connect/${username}`);
+      const data = await res.json();
+      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username} - Monitoreando SOLO donadores`);
+      else addChatLog(`❌ Error: ${data.error} - ¿El usuario está en vivo?`, true);
+    } catch(e) { addChatLog(`❌ Error de conexión: ${e.message}`, true); }
+    finally { btn.textContent = 'Conectar Live'; btn.disabled = false; }
   };
 
-  document.getElementById('sendChatCommand').onclick=()=>{ const cmd=document.getElementById('chatCommandInput').value; if(cmd) addChatLog(`🧪 Comando: ${cmd}`); };
-  document.getElementById('openCustom').onclick=()=>{ const amount=prompt('Cantidad de créditos:','1000'); if(amount && !isNaN(amount) && parseInt(amount)>0){ selectedCoins=parseInt(amount); selectedUsd=+(selectedCoins*0.0106).toFixed(2); document.querySelectorAll('.pack').forEach(b=>b.classList.remove('active')); addChatLog(`✨ Personalizado: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`); } };
-  document.getElementById('sendGiftBtn').onclick=processSend;
-  document.getElementById('closeReceiptBtn').onclick=closeReceiptAndClear;
+  document.getElementById('disconnectTikTokBtn').onclick = async () => {
+    const btn = document.getElementById('disconnectTikTokBtn');
+    btn.textContent = 'Desconectando...';
+    btn.disabled = true;
+    try {
+      await fetch('/disconnect');
+      addChatLog('✅ Desconectado manualmente del live');
+      priorityDonors.clear();
+      currentDonorsMap.clear();
+      renderDonorSuggestions();
+    } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
+    finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
+  };
 
-  function renderPacks(){
-    const grid=document.getElementById('packsGrid');
-    grid.innerHTML='';
-    packs.forEach(p=>{
-      const btn=document.createElement('div');
-      btn.className='pack'+(p.coins===selectedCoins?' active':'');
-      btn.innerHTML=`<div class="pack-coins"><span class="coin-emoji">🪙</span>${fmtCoins(p.coins)}</div><div class="pack-price">${fmtUSD(p.usd)}</div>`;
-      btn.onclick=()=>{ document.querySelectorAll('.pack').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedCoins=p.coins; selectedUsd=p.usd; addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`); };
+  document.getElementById('sendChatCommand').onclick = () => {
+    const cmd = document.getElementById('chatCommandInput').value;
+    if (cmd) addChatLog(`🧪 Comando enviado: ${cmd}`);
+  };
+
+  document.getElementById('openCustom').onclick = () => {
+    const amount = prompt('Ingresa la cantidad de créditos personalizada:', '1000');
+    if (amount && !isNaN(amount) && parseInt(amount) > 0) {
+      selectedCoins = parseInt(amount);
+      selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
+      document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
+      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`);
+    }
+  };
+
+  const sendButton = document.createElement('button');
+  sendButton.textContent = 'Enviar Gift a Donador';
+  sendButton.className = 'btn btn-pink btn-small';
+  sendButton.style.marginTop = '12px';
+  sendButton.style.width = '100%';
+  sendButton.onclick = processSend;
+  document.querySelector('.donor').appendChild(sendButton);
+
+  document.getElementById('confirmBtn').onclick = confirmSend;
+  document.getElementById('cancelBtn').onclick = () => {
+    document.getElementById('confirmModal').style.display = 'none';
+    pendingTransaction = null;
+  };
+  document.getElementById('closeReceiptBtn').onclick = closeReceiptAndClear;
+
+  function renderPacks() {
+    const grid = document.getElementById('packsGrid');
+    grid.innerHTML = '';
+    packs.forEach(p => {
+      const btn = document.createElement('div');
+      btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
+      btn.innerHTML = `
+        <div class="pack-coins">
+          <span class="coin-emoji">🪙</span>
+          ${fmtCoins(p.coins)}
+        </div>
+        <div class="pack-price">${fmtUSD(p.usd)}</div>
+      `;
+      btn.onclick = () => {
+        document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCoins = p.coins;
+        selectedUsd = p.usd;
+        addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
+      };
       grid.appendChild(btn);
     });
   }
@@ -362,4 +1051,4 @@
   updateBalanceUI();
 </script>
 </body>
-</html>
+  </html>
