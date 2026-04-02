@@ -22,10 +22,96 @@
       border-radius: 24px;
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      position: relative;
     }
     .content {
       padding: 20px;
     }
+    /* Notificaciones estilo chat flotante */
+    .notifications-area {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 400px;
+      z-index: 1000;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .gift-notification {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white;
+      border-radius: 50px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      animation: slideUp 0.3s ease, fadeOut 0.5s ease 4s forwards;
+      pointer-events: auto;
+      max-width: 90%;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateY(-20px); visibility: hidden; }
+    }
+    .gift-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #fe2c55;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      overflow: hidden;
+    }
+    .gift-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .gift-info {
+      flex: 1;
+    }
+    .gift-username {
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gift-detail {
+      font-size: 11px;
+      color: #ffd700;
+    }
+    .copy-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 20px;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      pointer-events: auto;
+    }
+    .copy-btn:hover {
+      background: rgba(255,255,255,0.4);
+    }
+    .copy-btn.copied {
+      background: #28a745;
+    }
+
     .card {
       background: #f8f8fa;
       border-radius: 16px;
@@ -215,8 +301,6 @@
       display: inline-block;
       margin-bottom: 12px;
     }
-
-    /* Tarjeta pequeña como emoji */
     .payment-method-small {
       display: flex;
       align-items: center;
@@ -266,8 +350,6 @@
       font-size: 12px;
       font-weight: 500;
     }
-
-    /* Modal de confirmación */
     .modal {
       display: none;
       position: fixed;
@@ -310,8 +392,6 @@
     }
     .btn-confirm { background: #fe2c55; color: white; }
     .btn-cancel { background: #f0f0f0; color: #666; }
-
-    /* Loading overlay */
     .loading-overlay {
       display: none;
       position: fixed;
@@ -384,8 +464,6 @@
       width: 16px;
       text-align: center;
     }
-
-    /* Comprobante */
     .receipt {
       display: none;
       position: fixed;
@@ -489,7 +567,7 @@
 <body>
 <div class="container">
   <div class="content">
-    <!-- Perfil con verificado y foto actualizada -->
+    <!-- Perfil -->
     <div class="card profile-card">
       <div class="profile-info">
         <div class="profile-avatar">
@@ -533,7 +611,6 @@
       <div class="grid" id="packsGrid"></div>
       <div class="custom-box" id="openCustom">✨ Personalizar ✨</div>
       
-      <!-- Tarjeta pequeña como emoji -->
       <div class="payment-method-small">
         <div class="card-info">
           <div class="card-icons">
@@ -579,6 +656,9 @@
   </div>
 </div>
 
+<!-- Área de notificaciones flotantes -->
+<div id="notificationsArea" class="notifications-area"></div>
+
 <!-- Modal de confirmación -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
@@ -601,34 +681,22 @@
   </div>
 </div>
 
-<!-- Loading overlay para simular procesamiento -->
+<!-- Loading overlay -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
     <div class="loading-text">Procesando transacción...</div>
     <div class="loading-subtext">No cierres esta ventana</div>
     <div class="loading-steps">
-      <div class="step" id="step1">
-        <span class="step-icon">○</span>
-        <span>Verificando datos de pago</span>
-      </div>
-      <div class="step" id="step2">
-        <span class="step-icon">○</span>
-        <span>Conectando con Mastercard</span>
-      </div>
-      <div class="step" id="step3">
-        <span class="step-icon">○</span>
-        <span>Autorizando transacción</span>
-      </div>
-      <div class="step" id="step4">
-        <span class="step-icon">○</span>
-        <span>Confirmando envío de créditos</span>
-      </div>
+      <div class="step" id="step1"><span class="step-icon">○</span><span>Verificando datos de pago</span></div>
+      <div class="step" id="step2"><span class="step-icon">○</span><span>Conectando con Mastercard</span></div>
+      <div class="step" id="step3"><span class="step-icon">○</span><span>Autorizando transacción</span></div>
+      <div class="step" id="step4"><span class="step-icon">○</span><span>Confirmando envío de créditos</span></div>
     </div>
   </div>
 </div>
 
-<!-- Comprobante de envío -->
+<!-- Comprobante -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-icon">✓</div>
@@ -664,6 +732,56 @@
 
   function generateTransactionId() {
     return 'TXN' + Date.now() + Math.floor(Math.random() * 10000);
+  }
+
+  // Función para copiar al portapapeles
+  async function copyToClipboard(text, buttonElement) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const originalText = buttonElement.textContent;
+      buttonElement.textContent = '✓ Copiado!';
+      buttonElement.classList.add('copied');
+      setTimeout(() => {
+        buttonElement.textContent = originalText;
+        buttonElement.classList.remove('copied');
+      }, 2000);
+      addChatLog(`📋 Usuario @${text} copiado al portapapeles`);
+    } catch (err) {
+      addChatLog(`❌ Error al copiar: ${err.message}`, true);
+    }
+  }
+
+  // Mostrar notificación de donador
+  function showGiftNotification(username, giftName = 'regalo', avatarUrl = null) {
+    const area = document.getElementById('notificationsArea');
+    const notification = document.createElement('div');
+    notification.className = 'gift-notification';
+    
+    notification.innerHTML = `
+      <div class="gift-avatar">
+        ${avatarUrl ? `<img src="${avatarUrl}" onerror="this.style.display='none';this.parentElement.innerHTML='🎁'">` : '🎁'}
+      </div>
+      <div class="gift-info">
+        <div class="gift-username">@${username}</div>
+        <div class="gift-detail">Envió ${giftName} 🎁</div>
+      </div>
+      <button class="copy-btn" data-username="${username}">Copiar</button>
+    `;
+    
+    const copyBtn = notification.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyToClipboard(copyBtn.dataset.username, copyBtn);
+    });
+    
+    area.appendChild(notification);
+    
+    // Eliminar después de 4.5 segundos
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 4500);
   }
 
   function clearUserInput() {
@@ -788,13 +906,11 @@
     document.getElementById('receiptModal').style.display = 'flex';
   }
 
-  // Función de animación de carga con pasos
   function showLoadingAnimation(callback) {
     const overlay = document.getElementById('loadingOverlay');
     const steps = ['step1', 'step2', 'step3', 'step4'];
     let currentStep = 0;
     
-    // Resetear todos los pasos
     steps.forEach(step => {
       const el = document.getElementById(step);
       el.className = 'step';
@@ -816,7 +932,6 @@
           updateStep();
         }, 1200);
       } else {
-        // Todos los pasos completados
         setTimeout(() => {
           overlay.style.display = 'none';
           if (callback) callback();
@@ -865,12 +980,9 @@
 
   function confirmSend() {
     if (pendingTransaction) {
-      // Cerrar modal de confirmación
       document.getElementById('confirmModal').style.display = 'none';
       
-      // Mostrar animación de carga
       showLoadingAnimation(() => {
-        // Después de la animación, procesar la transacción
         balance -= pendingTransaction.coins;
         updateBalanceUI();
         
@@ -960,11 +1072,17 @@
           if (data.message) addChatLog(data.message);
         } else if (data.type === 'gift') {
           const giftUser = data.username;
+          const giftName = data.giftName || 'regalo';
+          const giftAvatar = data.avatar || null;
+          
           if (giftUser && currentViewersMap.has(giftUser)) {
             priorityUsers.add(giftUser);
-            addChatLog(`🎁 @${giftUser} envió un regalo`);
+            addChatLog(`🎁 @${giftUser} envió un ${giftName}`);
             renderViewerSuggestions();
           }
+          
+          // Mostrar notificación flotante
+          showGiftNotification(giftUser, giftName, giftAvatar);
         }
       } catch(e) { console.error(e); }
     };
@@ -1063,4 +1181,4 @@
   updateBalanceUI();
 </script>
 </body>
-  </html>
+</html>
