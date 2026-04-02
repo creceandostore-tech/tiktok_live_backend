@@ -22,28 +22,78 @@ let reconnectAttempts = 0;
 let heartbeatInterval = null;
 let isManualDisconnect = false;
 
-// Cache de perfiles para evitar muchas peticiones
+// Cache de perfiles
 const profileCache = new Map();
-const CACHE_DURATION = 3600000; // 1 hora
+const CACHE_DURATION = 3600000;
 
-// Configuración optimizada
-const config = {
-    processInitialData: false,
+// Obtener sessionId de TikTok (necesario para websocket)
+async function getTikTokSessionId(username) {
+    try {
+        console.log(`🔑 Obteniendo sessionId para @${username}...`);
+        
+        const response = await fetch(`https://www.tiktok.com/@${username}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
+                'Connection': 'keep-alive'
+            }
+        });
+        
+        const html = await response.text();
+        
+        // Buscar sessionId en el HTML
+        const sessionMatch = html.match(/sessionid["']?\s*:\s*["']([^"']+)["']/i);
+        if (sessionMatch) {
+            console.log(`✅ SessionId obtenido`);
+            return sessionMatch[1];
+        }
+        
+        // Buscar en los scripts
+        const scriptMatch = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">(.*?)<\/script>/s);
+        if (scriptMatch) {
+            try {
+                const data = JSON.parse(scriptMatch[1]);
+                const sessionId = data?.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo?.sessionId ||
+                                 data?.__DEFAULT_SCOPE__?.sessionId;
+                if (sessionId) {
+                    console.log(`✅ SessionId encontrado en datos`);
+                    return sessionId;
+                }
+            } catch(e) {}
+        }
+        
+        console.log(`⚠️ No se encontró sessionId, usando modo polling`);
+        return null;
+        
+    } catch (error) {
+        console.error(`❌ Error obteniendo sessionId:`, error.message);
+        return null;
+    }
+}
+
+// Configuración CORREGIDA para evitar error de websocket
+const getConfig = (sessionId) => ({
+    processInitialData: true,
     enableExtendedGiftInfo: true,
-    enableWebsocketUpgrade: true,
-    requestPollingIntervalMs: 2000,
+    enableWebsocketUpgrade: false, // Deshabilitar websocket, usar polling
+    requestPollingIntervalMs: 3000,
+    sessionId: sessionId, // Usar sessionId si está disponible
     websocketTimeout: 60000,
     requestOptions: {
         timeout: 15000,
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Origin': 'https://www.tiktok.com',
+            'Referer': 'https://www.tiktok.com/'
         }
     }
-};
+});
 
 // Función para obtener perfil REAL de TikTok
 async function getTikTokProfile(username) {
-    // Verificar caché
     if (profileCache.has(username)) {
         const cached = profileCache.get(username);
         if (Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -55,24 +105,19 @@ async function getTikTokProfile(username) {
     try {
         console.log(`🔍 Buscando perfil real de @${username}...`);
         
-        // Método 1: API pública de TikTok
         const response = await fetch(`https://www.tiktok.com/@${username}`, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive'
+                'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3'
             }
         });
         
         const html = await response.text();
-        
-        // Buscar datos en el script de TikTok
         let avatarUrl = null;
         let nickname = username;
         
-        // Método 1: Buscar en el script de datos
+        // Buscar en el script de datos
         const scriptMatch = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">(.*?)<\/script>/s);
         if (scriptMatch) {
             try {
@@ -88,19 +133,11 @@ async function getTikTokProfile(username) {
             } catch(e) {}
         }
         
-        // Método 2: Buscar avatar en el HTML
         if (!avatarUrl) {
             const avatarMatch = html.match(/avatar":\{"uri":"(https:[^"]+)"/);
             if (avatarMatch) avatarUrl = avatarMatch[1];
         }
         
-        // Método 3: Buscar en meta tags
-        if (!avatarUrl) {
-            const ogImageMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/);
-            if (ogImageMatch && ogImageMatch[1].includes('tiktok')) avatarUrl = ogImageMatch[1];
-        }
-        
-        // Si encontramos avatar, lo guardamos en caché
         if (avatarUrl) {
             console.log(`✅ Perfil encontrado: @${username} - ${nickname}`);
             const profileData = {
@@ -115,28 +152,18 @@ async function getTikTokProfile(username) {
         }
         
         console.log(`⚠️ No se encontró avatar para @${username}`);
-        return {
-            username: username,
-            nickname: username,
-            avatar: null
-        };
+        return { username: username, nickname: username, avatar: null };
         
     } catch (error) {
-        console.error(`❌ Error obteniendo perfil de @${username}:`, error.message);
-        return {
-            username: username,
-            nickname: username,
-            avatar: null
-        };
+        console.error(`❌ Error obteniendo perfil:`, error.message);
+        return { username: username, nickname: username, avatar: null };
     }
 }
 
-// Función para actualizar perfil de un gifter
 async function updateGifterProfile(username) {
     if (gifters.has(username)) {
         const gifter = gifters.get(username);
         
-        // Solo actualizar si no tiene nickname o avatar
         if (!gifter.nickname || gifter.nickname === username || !gifter.avatar) {
             const profile = await getTikTokProfile(username);
             
@@ -195,7 +222,6 @@ async function processGift(giftEvent) {
         const now = Date.now();
         
         if (!gifters.has(uniqueId)) {
-            // Obtener perfil real del nuevo gifter
             const profile = await getTikTokProfile(uniqueId);
             
             gifters.set(uniqueId, {
@@ -214,7 +240,6 @@ async function processGift(giftEvent) {
             gifters.set(uniqueId, existing);
             console.log(`🔄 ACTUALIZADO: @${uniqueId} - Total: ${existing.totalGifts}💎`);
             
-            // Actualizar perfil si es necesario
             if (!existing.avatar || existing.nickname === uniqueId) {
                 await updateGifterProfile(uniqueId);
             }
@@ -286,16 +311,12 @@ setInterval(() => {
     }
 }, 120000);
 
-// Heartbeat para mantener conexión activa
 function startHeartbeat() {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     
     heartbeatInterval = setInterval(() => {
         if (activeConnection && activeConnection.isConnected) {
             console.log('💓 Heartbeat - conexión activa');
-            try {
-                activeConnection.getRoomInfo().catch(() => {});
-            } catch(e) {}
         } else if (activeConnection && !activeConnection.isConnected && currentUsername && !isManualDisconnect) {
             console.log('⚠️ Heartbeat detectó desconexión, reconectando...');
             reconnectToTikTok();
@@ -308,7 +329,7 @@ async function reconnectToTikTok() {
     if (!currentUsername) return;
     
     reconnectAttempts++;
-    const delay = Math.min(5000 * Math.pow(1.5, reconnectAttempts - 1), 60000);
+    const delay = Math.min(5000 * Math.pow(1.3, reconnectAttempts - 1), 30000);
     
     console.log(`🔄 Intento de reconexión ${reconnectAttempts} en ${Math.round(delay/1000)}s...`);
     
@@ -350,6 +371,10 @@ async function connectToTikTok(username) {
     });
     
     try {
+        // Obtener sessionId para evitar error de websocket
+        const sessionId = await getTikTokSessionId(currentUsername);
+        const config = getConfig(sessionId);
+        
         activeConnection = new WebcastPushConnection(currentUsername, config);
         
         activeConnection.on('connected', (state) => {
@@ -388,14 +413,14 @@ async function connectToTikTok(username) {
         activeConnection.on('error', (err) => {
             console.error(`❌ Error: ${err.message}`);
             
-            if (!isManualDisconnect && err.message !== 'User offline') {
+            if (!isManualDisconnect && !err.message.includes('User offline')) {
                 broadcastToAllClients({
                     type: 'connection_status',
                     connected: false,
                     message: `Error: ${err.message} - Reconectando...`
                 });
                 reconnectToTikTok();
-            } else if (err.message === 'User offline') {
+            } else if (err.message.includes('User offline')) {
                 broadcastToAllClients({
                     type: 'connection_status',
                     connected: false,
@@ -511,7 +536,6 @@ app.get('/search/:username', async (req, res) => {
             isDonor: gifter.isDonor || false
         });
     } else {
-        // Buscar perfil en TikTok
         const profile = await getTikTokProfile(username);
         res.json({
             username: username,
@@ -564,17 +588,17 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Iniciar servidor
 server.listen(PORT, () => {
     console.log(`\n${'='.repeat(50)}`);
-    console.log(`🚀 SERVIDOR TIKTOK LIVE - CON PERFILES REALES`);
+    console.log(`🚀 SERVIDOR TIKTOK LIVE - VERSIÓN DEFINITIVA`);
     console.log(`${'='.repeat(50)}`);
     console.log(`📡 Puerto: ${PORT}`);
     console.log(`🌐 http://localhost:${PORT}`);
-    console.log(`\n✨ PERFILES REALES DE TIKTOK`);
-    console.log(`📸 Se muestran fotos de perfil y nombres reales`);
-    console.log(`💾 Caché de perfiles: 1 hora`);
+    console.log(`\n✨ CORRECCIONES APLICADAS:`);
+    console.log(`🔧 Deshabilitado WebSocket - Usando Polling (más estable)`);
+    console.log(`🔑 Obtención automática de SessionId`);
+    console.log(`📸 Perfiles reales con fotos y nombres`);
     console.log(`🔄 Reconexión automática infinita`);
-    console.log(`🎁 Los regalos aparecen con foto y nombre real`);
+    console.log(`💓 Heartbeat cada 15 segundos`);
     console.log(`${'='.repeat(50)}\n`);
 });
