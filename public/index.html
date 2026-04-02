@@ -639,7 +639,7 @@
       margin-top: 6px;
     }
 
-    /* Loading overlay - TRANSACCIONES MÁS RÁPIDAS */
+    /* Loading overlay */
     .loading-overlay {
       display: none;
       position: fixed;
@@ -903,7 +903,7 @@
   </div>
 </div>
 
-<!-- LOADING - TRANSACCIONES MÁS RÁPIDAS -->
+<!-- LOADING -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
@@ -990,12 +990,14 @@
   let pendingTransaction = null;
 
   const cardLast4 = "6789";
+  // NUEVOS PACKS ACTUALIZADOS
   const packs = [
     {coins: 30, usd: 0.32},
     {coins: 350, usd: 3.65},
-    {coins: 700, usd: 7.25},
+    {coins: 500, usd: 5.20},
     {coins: 1400, usd: 14.49},
-    {coins: 3500, usd: 36.20}
+    {coins: 12000, usd: 124.20},
+    {coins: 50000, usd: 517.50}
   ];
 
   function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
@@ -1124,7 +1126,6 @@
     document.getElementById('receiptModal').style.display = 'flex';
   }
 
-  // TRANSACCIONES MÁS RÁPIDAS - tiempos reducidos
   function showLoadingAnimation(callback) {
     const overlay = document.getElementById('loadingOverlay');
     const steps = ['step1', 'step2', 'step3', 'step4'];
@@ -1145,12 +1146,12 @@
           stepEl.querySelector('.step-icon').textContent = '✓';
           currentStep++;
           updateStep();
-        }, 500); // Reducido de 1200ms a 500ms
+        }, 500);
       } else {
         setTimeout(() => { 
           overlay.style.display = 'none'; 
           if (callback) callback(); 
-        }, 300); // Reducido de 500ms a 300ms
+        }, 300);
       }
     }
     updateStep();
