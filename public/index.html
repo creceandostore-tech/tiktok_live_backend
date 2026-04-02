@@ -133,7 +133,7 @@
     .btn-pink { background: #fe2c55; color: white; }
     .btn-red { background: #ff3b30; color: white; }
     .btn-small { padding: 8px 16px; font-size: 14px; }
-    .user-card {
+    .hit {
       display: flex;
       gap: 12px;
       align-items: center;
@@ -142,14 +142,14 @@
       border-radius: 12px;
       border: 1px solid #eee;
     }
-    .user-pic {
+    .hit-pic {
       width: 48px;
       height: 48px;
       border-radius: 50%;
       background: linear-gradient(135deg, #ddd, #ccc);
       overflow: hidden;
     }
-    .user-pic img { width: 100%; height: 100%; object-fit: cover; }
+    .hit-pic img { width: 100%; height: 100%; object-fit: cover; }
     .status-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -159,15 +159,6 @@
     }
     .connected { background: #e6f7e6; color: #0a5c0a; }
     .disconnected { background: #ffe6e6; color: #c41e1e; }
-    .chat-log {
-      background: #f0f0f0;
-      border-radius: 12px;
-      padding: 10px;
-      height: 120px;
-      overflow-y: auto;
-      font-size: 12px;
-      margin-top: 10px;
-    }
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -263,6 +254,22 @@
     .card-brand-text {
       font-size: 12px;
       font-weight: 500;
+    }
+    .invite-section {
+      background: linear-gradient(135deg, #fff5e6, #ffe8d9);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      text-align: center;
+    }
+    .invite-title {
+      font-weight: 700;
+      color: #fe2c55;
+      margin-bottom: 5px;
+    }
+    .invite-text {
+      font-size: 12px;
+      color: #666;
     }
     .modal {
       display: none;
@@ -456,27 +463,14 @@
       margin-top: 12px;
       cursor: pointer;
     }
-    .invite-section {
-      background: linear-gradient(135deg, #fff5e6, #ffe8d9);
+    .log-container {
+      background: #f0f0f0;
       border-radius: 12px;
-      padding: 12px;
-      margin-top: 12px;
-      text-align: center;
-    }
-    .invite-title {
-      font-weight: 700;
-      color: #fe2c55;
-      margin-bottom: 5px;
-    }
-    .invite-text {
+      padding: 10px;
+      height: 100px;
+      overflow-y: auto;
       font-size: 12px;
-      color: #666;
-    }
-    .users-count {
-      font-size: 12px;
-      color: #fe2c55;
-      margin-top: 5px;
-      font-weight: 600;
+      margin-top: 10px;
     }
     datalist {
       background: white;
@@ -487,6 +481,7 @@
 <body>
 <div class="container">
   <div class="content">
+    <!-- Perfil -->
     <div class="card profile-card">
       <div class="profile-info">
         <div class="profile-avatar">
@@ -509,24 +504,26 @@
       </div>
     </div>
 
+    <!-- Enviar Gift -->
     <div class="card">
       <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
       <div class="row">
-        <input id="usernameInput" class="input" list="usersList" placeholder="Usuario de TikTok" autocomplete="off" />
-        <datalist id="usersList"></datalist>
+        <input id="usernameInput" class="input" list="viewersList" placeholder="Usuario de TikTok" autocomplete="off" />
+        <datalist id="viewersList"></datalist>
         <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
-      <div class="user-card">
-        <div class="user-pic" id="userPic"></div>
+      <div class="hit">
+        <div class="hit-pic" id="hitPic"></div>
         <div>
-          <div id="userName" style="font-weight:600">Usuario</div>
+          <div id="hitName" style="font-weight:600">Usuario</div>
           <div id="previewUser" style="font-size:12px; color:#888">No seleccionado</div>
         </div>
       </div>
     </div>
 
+    <!-- Packs y pago -->
     <div class="card">
-      <div class="discount-badge">✨ Ahorra un 25% con una tarifa de servicio de terceros más baja ✨</div>
+      <div class="discount-badge">✨ Ahorra un 25% con una tarifa de servicio más baja ✨</div>
       <div class="grid" id="packsGrid"></div>
       <div class="custom-box" id="openCustom">✨ Personalizar ✨</div>
       
@@ -549,6 +546,7 @@
       </div>
     </div>
 
+    <!-- TikTok Live -->
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <span>📱 TikTok Live</span>
@@ -561,20 +559,18 @@
         <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
         <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
-      <div id="liveUserCount" class="users-count"></div>
+      <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
     </div>
 
+    <!-- Log de eventos -->
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">💬 Comandos de Chat</div>
-      <div class="row">
-        <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
-        <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
-      </div>
-      <div id="chatLog" class="chat-log">💬 Esperando actividad...</div>
+      <div style="font-weight:600; margin-bottom:10px">📋 Eventos</div>
+      <div id="eventLog" class="log-container">✨ Esperando eventos de regalos...</div>
     </div>
   </div>
 </div>
 
+<!-- Modal de confirmación -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
     <h3 style="margin-bottom:16px">Confirmar Envío</h3>
@@ -596,6 +592,7 @@
   </div>
 </div>
 
+<!-- Loading overlay -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
@@ -622,6 +619,7 @@
   </div>
 </div>
 
+<!-- Comprobante -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-icon">✓</div>
@@ -635,10 +633,10 @@
   let balance = 78000000;
   let selectedCoins = 350;
   let selectedUsd = 3.65;
-  let currentUsersMap = new Map();
-  let priorityUsers = new Set();
+  let currentViewersMap = new Map();
   let ws = null;
   let pendingTransaction = null;
+  let reconnectAttempts = 0;
 
   const cardLast4 = "6789";
 
@@ -650,7 +648,7 @@
     {coins: 3500, usd: 36.20, note: ""}
   ];
 
-  function fmtCoins(n) { return Number(n).toLocaleString('es-ES'); }
+  function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
   function fmtUSD(n) { return 'US$' + Number(n).toFixed(2); }
   function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
   function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
@@ -661,79 +659,72 @@
 
   function clearUserInput() {
     document.getElementById('usernameInput').value = '';
-    document.getElementById('userName').textContent = 'Usuario';
+    document.getElementById('hitName').textContent = 'Usuario';
     document.getElementById('previewUser').textContent = 'No seleccionado';
-    document.getElementById('userPic').innerHTML = '';
-    document.getElementById('userPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
-  }
-
-  function getSortedUsers() {
-    const usersArray = Array.from(currentUsersMap.values());
-    const priorityUsersList = usersArray.filter(u => priorityUsers.has(u.username));
-    const normalUsers = usersArray.filter(u => !priorityUsers.has(u.username));
-    return [...priorityUsersList, ...normalUsers];
+    document.getElementById('hitPic').innerHTML = '';
+    document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
   function updateSuggestions() {
-    const datalist = document.getElementById('usersList');
-    const sortedUsers = getSortedUsers();
+    const datalist = document.getElementById('viewersList');
+    const viewersArray = Array.from(currentViewersMap.values());
     datalist.innerHTML = '';
-    sortedUsers.forEach(user => {
+    viewersArray.forEach(viewer => {
       const option = document.createElement('option');
-      option.value = user.username;
+      option.value = viewer.username;
       datalist.appendChild(option);
     });
     
-    const userCountSpan = document.getElementById('liveUserCount');
-    if(userCountSpan) {
-      userCountSpan.innerHTML = `👥 ${sortedUsers.length} usuarios activos`;
+    const viewerCountSpan = document.getElementById('liveViewerCount');
+    if(viewerCountSpan) {
+      viewerCountSpan.innerHTML = `🎁 ${viewersArray.length} gifters`;
     }
   }
 
-  function renderUserSuggestions() {
+  function renderViewerSuggestions() {
     updateSuggestions();
     updateUserViews();
   }
 
   function updateUserViews() {
     const username = currentUser();
-    const userPic = document.getElementById('userPic');
-    const userName = document.getElementById('userName');
+    const hitPic = document.getElementById('hitPic');
+    const hitName = document.getElementById('hitName');
     const previewUser = document.getElementById('previewUser');
-    const found = currentUsersMap.get(username);
+    const found = currentViewersMap.get(username);
     if (username && found) {
-      userName.textContent = found.nickname || username;
-      previewUser.textContent = `@${username}`;
+      hitName.textContent = found.nickname || username;
+      previewUser.textContent = `@${username}${found.isDonor ? ' 🏆 Donador' : ''}`;
       if (found.avatar && found.avatar !== 'null') {
-        userPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
-        userPic.style.background = 'transparent';
+        hitPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
+        hitPic.style.background = 'transparent';
       } else {
-        userPic.innerHTML = '';
-        userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+        hitPic.innerHTML = '';
+        hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
       }
     } else if (username) {
-      userName.textContent = username;
+      hitName.textContent = username;
       previewUser.textContent = `@${username}`;
-      userPic.innerHTML = '';
-      userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+      hitPic.innerHTML = '';
+      hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     } else {
-      userName.textContent = 'Usuario';
+      hitName.textContent = 'Usuario';
       previewUser.textContent = 'No seleccionado';
-      userPic.innerHTML = '';
-      userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+      hitPic.innerHTML = '';
+      hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     }
   }
 
-  function addChatLog(msg, isErr = false) {
-    const log = document.getElementById('chatLog');
+  function addEventLog(msg, isErr = false) {
+    const logContainer = document.getElementById('eventLog');
     const p = document.createElement('div');
     p.textContent = msg;
     p.style.color = isErr ? '#ff3b30' : '#666';
     p.style.fontSize = '11px';
     p.style.marginBottom = '4px';
-    log.appendChild(p);
-    log.scrollTop = log.scrollHeight;
-    while(log.children.length > 20) log.removeChild(log.firstChild);
+    logContainer.appendChild(p);
+    logContainer.scrollTop = logContainer.scrollHeight;
+    while(logContainer.children.length > 20) logContainer.removeChild(logContainer.firstChild);
   }
 
   function showReceipt(username, amount, coins, fee, total, transactionId) {
@@ -820,11 +811,11 @@
   function processSend() {
     const username = currentUser();
     if (!username) {
-      addChatLog('❌ Ingresa un username para enviar', true);
+      addEventLog('❌ Ingresa un username para enviar', true);
       return false;
     }
     if (selectedCoins > balance) {
-      addChatLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, true);
+      addEventLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, true);
       return false;
     }
     
@@ -870,7 +861,7 @@
           pendingTransaction.transactionId
         );
         
-        addChatLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`);
+        addEventLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`);
         
         pendingTransaction = null;
       });
@@ -880,7 +871,53 @@
   function closeReceiptAndClear() {
     document.getElementById('receiptModal').style.display = 'none';
     clearUserInput();
-    addChatLog('✨ Usuario limpiado. Puedes enviar otro gift ✨');
+    addEventLog('✨ Usuario limpiado. Puedes enviar otro gift ✨');
+  }
+
+  function initWebSocket() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${location.host}`);
+    
+    ws.onopen = () => {
+      addEventLog('✅ Conectado al servidor');
+      reconnectAttempts = 0;
+    };
+    
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'viewers') {
+          currentViewersMap.clear();
+          data.data.forEach(v => currentViewersMap.set(v.username, v));
+          renderViewerSuggestions();
+          addEventLog(`🎁 ${data.data.length} gifters conectados`);
+        } else if (data.type === 'connection_status') {
+          const badge = document.getElementById('connectionStatusBadge');
+          const connectBtn = document.getElementById('connectTikTokBtn');
+          const disconnectBtn = document.getElementById('disconnectTikTokBtn');
+          if (data.connected) {
+            badge.className = 'status-badge connected';
+            badge.innerHTML = '● Conectado';
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = 'block';
+            addEventLog(`🎉 Conectado al live de @${data.username}`);
+          } else {
+            badge.className = 'status-badge disconnected';
+            badge.innerHTML = '● Desconectado';
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+            if (data.message) addEventLog(data.message);
+          }
+        }
+      } catch(e) { console.error(e); }
+    };
+    
+    ws.onclose = () => {
+      addEventLog('🔌 Desconectado del servidor, reconectando...', true);
+      reconnectAttempts++;
+      const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 30000);
+      setTimeout(initWebSocket, delay);
+    };
   }
 
   document.getElementById('searchUserBtn').onclick = async () => {
@@ -894,73 +931,23 @@
       const res = await fetch(`/search/${username}`);
       const data = await res.json();
       if (data.avatar) {
-        addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
-        if (currentUsersMap.has(username)) {
-          currentUsersMap.get(username).avatar = data.avatar;
-          currentUsersMap.get(username).nickname = data.nickname;
-        } else {
-          currentUsersMap.set(username, { username, nickname: data.nickname, avatar: data.avatar });
+        addEventLog(`✅ @${username} - Foto encontrada 📸`);
+        if (currentViewersMap.has(username)) {
+          currentViewersMap.get(username).avatar = data.avatar;
         }
         updateUserViews();
       } else if (data.found) {
-        addChatLog(`✅ @${username} encontrado en el live`);
+        addEventLog(`✅ @${username} encontrado como gifter`);
       } else {
-        addChatLog(`⚠️ @${username} no está en el live actual`);
+        addEventLog(`⚠️ @${username} no ha enviado regalos aún`);
       }
     } catch(e) {
-      addChatLog(`❌ Error: ${e.message}`, true);
+      addEventLog(`❌ Error: ${e.message}`, true);
     } finally {
       btn.textContent = original;
       btn.disabled = false;
     }
   };
-
-  function initWebSocket() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${protocol}//${location.host}`);
-    ws.onopen = () => addChatLog('✅ Conectado al servidor de TikTok Live');
-    ws.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.type === 'users') {
-          currentUsersMap.clear();
-          data.data.forEach(u => currentUsersMap.set(u.username, u));
-          renderUserSuggestions();
-          addChatLog(`👥 ${data.data.length} usuarios activos (total: ${data.total})`);
-        } else if (data.type === 'command') {
-          addChatLog(`📡 Comando recibido: ${data.command}`);
-        } else if (data.type === 'connection_status') {
-          const badge = document.getElementById('connectionStatusBadge');
-          const connectBtn = document.getElementById('connectTikTokBtn');
-          const disconnectBtn = document.getElementById('disconnectTikTokBtn');
-          if (data.connected) {
-            badge.className = 'status-badge connected';
-            badge.innerHTML = '● Conectado';
-            connectBtn.style.display = 'none';
-            disconnectBtn.style.display = 'block';
-            addChatLog(`🎉 Conectado al live de @${data.username}`);
-          } else {
-            badge.className = 'status-badge disconnected';
-            badge.innerHTML = '● Desconectado';
-            connectBtn.style.display = 'block';
-            disconnectBtn.style.display = 'none';
-          }
-          if (data.message) addChatLog(data.message);
-        } else if (data.type === 'gift') {
-          const giftUser = data.username;
-          if (giftUser && currentUsersMap.has(giftUser)) {
-            priorityUsers.add(giftUser);
-            addChatLog(`🎁 @${giftUser} envió un regalo`);
-            renderUserSuggestions();
-          }
-        }
-      } catch(e) { console.error(e); }
-    };
-    ws.onclose = () => {
-      addChatLog('🔌 Desconectado del servidor, reconectando...', true);
-      setTimeout(initWebSocket, 3000);
-    };
-  }
 
   document.getElementById('connectTikTokBtn').onclick = async () => {
     const username = document.getElementById('tiktokUsername').value.trim();
@@ -971,10 +958,10 @@
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username}`);
-      else addChatLog(`❌ Error: ${data.error} - ¿El usuario está en vivo?`, true);
-    } catch(e) { addChatLog(`❌ Error de conexión: ${e.message}`, true); }
-    finally { btn.textContent = 'Conectar Live'; btn.disabled = false; }
+      if (data.status === 'connected') addEventLog(`✅ Conectado a @${username}`);
+      else addEventLog(`❌ Error: ${data.error}`, true);
+    } catch(e) { addEventLog(`❌ Error: ${e.message}`, true); }
+    finally { btn.textContent = '🔴 Conectar Live'; btn.disabled = false; }
   };
 
   document.getElementById('disconnectTikTokBtn').onclick = async () => {
@@ -983,17 +970,11 @@
     btn.disabled = true;
     try {
       await fetch('/disconnect');
-      addChatLog('✅ Desconectado manualmente del live');
-      priorityUsers.clear();
-      currentUsersMap.clear();
-      renderUserSuggestions();
-    } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
-    finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
-  };
-
-  document.getElementById('sendChatCommand').onclick = () => {
-    const cmd = document.getElementById('chatCommandInput').value;
-    if (cmd) addChatLog(`🧪 Comando enviado: ${cmd}`);
+      addEventLog('✅ Desconectado del live');
+      currentViewersMap.clear();
+      renderViewerSuggestions();
+    } catch(e) { addEventLog(`❌ Error: ${e.message}`, true); }
+    finally { btn.textContent = '⛔ Desconectar'; btn.disabled = false; }
   };
 
   document.getElementById('openCustom').onclick = () => {
@@ -1002,7 +983,7 @@
       selectedCoins = parseInt(amount);
       selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
       document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-      addChatLog(`✨ Cantidad personalizada: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`);
+      addEventLog(`✨ Personalizado: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`);
     }
   };
 
@@ -1012,7 +993,7 @@
   sendButton.style.marginTop = '12px';
   sendButton.style.width = '100%';
   sendButton.onclick = processSend;
-  document.querySelector('.user-card').appendChild(sendButton);
+  document.querySelector('.hit').appendChild(sendButton);
 
   document.getElementById('confirmBtn').onclick = confirmSend;
   document.getElementById('cancelBtn').onclick = () => {
@@ -1039,7 +1020,7 @@
         btn.classList.add('active');
         selectedCoins = p.coins;
         selectedUsd = p.usd;
-        addChatLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
+        addEventLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
       };
       grid.appendChild(btn);
     });
@@ -1051,4 +1032,4 @@
   updateBalanceUI();
 </script>
 </body>
-        </html>
+</html>
