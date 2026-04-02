@@ -444,7 +444,7 @@
       transform: scale(1.02);
     }
 
-    /* TICKET DE COMPROBANTE - VERSIÓN MÁS PEQUEÑA */
+    /* TICKET DE COMPROBANTE */
     .receipt {
       display: none;
       position: fixed;
@@ -471,7 +471,6 @@
       from { transform: translateY(30px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
-    /* Encabezado compacto */
     .receipt-header {
       background: linear-gradient(135deg, #1a1a2e, #16213e);
       padding: 16px;
@@ -499,7 +498,6 @@
       font-size: 10px;
       opacity: 0.8;
     }
-    /* Cuerpo compacto */
     .receipt-body {
       padding: 14px;
       background: #ffffff;
@@ -534,11 +532,6 @@
       color: #fe2c55;
       font-size: 14px;
     }
-    .info-value.monospace {
-      font-family: monospace;
-      font-size: 10px;
-    }
-    /* Detalle de créditos compacto */
     .credits-detail {
       background: linear-gradient(135deg, #fff5f5, #ffe8e8);
       border-radius: 12px;
@@ -559,7 +552,6 @@
       color: #fe2c55;
       margin-top: 2px;
     }
-    /* Tarjeta de pago compacta */
     .payment-card {
       background: linear-gradient(135deg, #1e2a3a, #0f1722);
       border-radius: 12px;
@@ -609,7 +601,6 @@
       font-weight: 800;
       font-size: 15px;
     }
-    /* Footer compacto */
     .receipt-footer {
       background: #f8f9fa;
       padding: 12px;
@@ -648,7 +639,7 @@
       margin-top: 6px;
     }
 
-    /* Loading overlay */
+    /* Loading overlay - TRANSACCIONES MÁS RÁPIDAS */
     .loading-overlay {
       display: none;
       position: fixed;
@@ -912,7 +903,7 @@
   </div>
 </div>
 
-<!-- LOADING -->
+<!-- LOADING - TRANSACCIONES MÁS RÁPIDAS -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
@@ -927,12 +918,12 @@
   </div>
 </div>
 
-<!-- TICKET DE COMPROBANTE - VERSIÓN COMPACTA -->
+<!-- TICKET DE COMPROBANTE -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-header">
       <div class="success-icon">✓</div>
-      <h2>¡Éxito!</h2>
+      <h2>¡Transacción Exitosa!</h2>
       <p>Transferencia completada</p>
     </div>
     <div class="receipt-body">
@@ -1133,6 +1124,7 @@
     document.getElementById('receiptModal').style.display = 'flex';
   }
 
+  // TRANSACCIONES MÁS RÁPIDAS - tiempos reducidos
   function showLoadingAnimation(callback) {
     const overlay = document.getElementById('loadingOverlay');
     const steps = ['step1', 'step2', 'step3', 'step4'];
@@ -1153,9 +1145,12 @@
           stepEl.querySelector('.step-icon').textContent = '✓';
           currentStep++;
           updateStep();
-        }, 1000);
+        }, 500); // Reducido de 1200ms a 500ms
       } else {
-        setTimeout(() => { overlay.style.display = 'none'; if (callback) callback(); }, 400);
+        setTimeout(() => { 
+          overlay.style.display = 'none'; 
+          if (callback) callback(); 
+        }, 300); // Reducido de 500ms a 300ms
       }
     }
     updateStep();
