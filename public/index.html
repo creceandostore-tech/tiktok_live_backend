@@ -16,7 +16,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 400px;
+      max-width: 450px;
       margin: 0 auto;
       background: white;
       border-radius: 24px;
@@ -69,6 +69,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
     }
     .verified-badge {
       background: #20d5ec;
@@ -464,13 +465,14 @@
       cursor: pointer;
     }
     .log-container {
-      background: #f0f0f0;
+      background: #0a0a0a;
       border-radius: 12px;
       padding: 10px;
-      height: 150px;
+      height: 200px;
       overflow-y: auto;
       font-size: 12px;
       margin-top: 10px;
+      font-family: monospace;
     }
     .gift-notification {
       position: fixed;
@@ -485,6 +487,7 @@
       z-index: 2000;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       pointer-events: none;
+      font-size: 14px;
     }
     @keyframes slideInRight {
       from { transform: translateX(100%); opacity: 0; }
@@ -502,9 +505,35 @@
       margin-left: 6px;
       font-weight: bold;
     }
+    .gifter-stats {
+      font-size: 11px;
+      color: #fe2c55;
+      margin-top: 5px;
+    }
+    .live-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fe2c55;
+      animation: pulse 1s infinite;
+      margin-right: 6px;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.5); }
+    }
     datalist {
       background: white;
       border-radius: 12px;
+    }
+    .log-entry-gift {
+      color: #fe2c55 !important;
+      font-weight: bold;
+    }
+    .log-entry-donor {
+      color: #ffd700 !important;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -536,7 +565,7 @@
 
     <!-- Enviar Gift -->
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
+      <div style="font-weight:600; margin-bottom:10px">🎁 Enviar Gift</div>
       <div class="row">
         <input id="usernameInput" class="input" list="viewersList" placeholder="Usuario de TikTok" autocomplete="off" />
         <datalist id="viewersList"></datalist>
@@ -583,19 +612,23 @@
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
-        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo" />
+        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo (ej: elmattriste)" />
       </div>
       <div class="button-group">
         <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
         <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
+      <div id="gifterStats" class="gifter-stats"></div>
     </div>
 
     <!-- Eventos en tiempo real -->
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">⚡ Eventos en Tiempo Real</div>
-      <div id="eventLog" class="log-container">✨ Esperando regalos...</div>
+      <div style="font-weight:600; margin-bottom:10px">
+        <span class="live-indicator"></span>
+        REGALOS EN TIEMPO REAL
+      </div>
+      <div id="eventLog" class="log-container">✨ Esperando regalos...\n\n🎁 Los regalos aparecerán aquí instantáneamente</div>
     </div>
   </div>
 </div>
@@ -667,15 +700,16 @@
   let ws = null;
   let pendingTransaction = null;
   let reconnectAttempts = 0;
+  let giftCounter = 0;
 
   const cardLast4 = "6789";
 
   const packs = [
-    {coins: 30, usd: 0.32, note: ""},
-    {coins: 350, usd: 3.65, note: ""},
-    {coins: 700, usd: 7.25, note: ""},
-    {coins: 1400, usd: 14.49, note: ""},
-    {coins: 3500, usd: 36.20, note: ""}
+    {coins: 30, usd: 0.32},
+    {coins: 350, usd: 3.65},
+    {coins: 700, usd: 7.25},
+    {coins: 1400, usd: 14.49},
+    {coins: 3500, usd: 36.20}
   ];
 
   function fmtCoins(n) { return Number(n).toLocaleString('en-US'); }
@@ -690,27 +724,23 @@
   function clearUserInput() {
     document.getElementById('usernameInput').value = '';
     document.getElementById('hitName').textContent = 'Usuario';
-    document.getElementById('previewUser').textContent = 'No seleccionado';
+    document.getElementById('previewUser').innerHTML = 'No seleccionado';
     document.getElementById('hitPic').innerHTML = '';
     document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
-  // Mostrar notificación flotante de regalo
-  function showGiftNotification(username, giftName, giftValue) {
+  function showGiftNotification(username, giftName, diamondCount) {
     const notification = document.createElement('div');
     notification.className = 'gift-notification';
-    notification.innerHTML = `🎁 ${username} envió ${giftName} (${giftValue}💎)`;
+    notification.innerHTML = `🎁 @${username} envió ${giftName} (${diamondCount}💎)`;
     document.body.appendChild(notification);
-    setTimeout(() => {
-      notification.remove();
-    }, 3000);
+    setTimeout(() => notification.remove(), 3000);
   }
 
   function updateSuggestions() {
     const datalist = document.getElementById('viewersList');
     const viewersArray = Array.from(currentViewersMap.values());
     datalist.innerHTML = '';
-    // Ordenar por total de regalos (mayor primero)
     viewersArray.sort((a, b) => (b.totalGifts || 0) - (a.totalGifts || 0));
     viewersArray.forEach(viewer => {
       const option = document.createElement('option');
@@ -719,9 +749,11 @@
     });
     
     const viewerCountSpan = document.getElementById('liveViewerCount');
+    const gifterStatsSpan = document.getElementById('gifterStats');
     if(viewerCountSpan) {
       const donorsCount = viewersArray.filter(v => v.isDonor).length;
       viewerCountSpan.innerHTML = `🎁 ${viewersArray.length} gifters | 🏆 ${donorsCount} donadores`;
+      gifterStatsSpan.innerHTML = `💰 Total de regalos acumulados: ${viewersArray.reduce((sum, v) => sum + (v.totalGifts || 0), 0)}💎`;
     }
   }
 
@@ -738,7 +770,7 @@
     const found = currentViewersMap.get(username);
     if (username && found) {
       hitName.textContent = found.nickname || username;
-      previewUser.innerHTML = `@${username}${found.isDonor ? ' <span class="donor-badge">🏆 DONADOR</span>' : ''}`;
+      previewUser.innerHTML = `@${username}${found.isDonor ? ' <span class="donor-badge">🏆 DONADOR</span>' : ''}<br><small style="color:#fe2c55">${found.totalGifts || 0}💎 totales</small>`;
       if (found.avatar && found.avatar !== 'null') {
         hitPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
         hitPic.style.background = 'transparent';
@@ -759,17 +791,33 @@
     }
   }
 
-  function addEventLog(msg, isErr = false, isGift = false) {
+  function addEventLog(msg, type = 'info') {
     const logContainer = document.getElementById('eventLog');
     const p = document.createElement('div');
-    p.innerHTML = msg;
-    p.style.color = isErr ? '#ff3b30' : (isGift ? '#fe2c55' : '#666');
-    p.style.fontSize = '11px';
+    const time = new Date().toLocaleTimeString();
+    
+    let color = '#888';
+    let prefix = '📌';
+    if (type === 'gift') {
+      color = '#fe2c55';
+      prefix = '🎁';
+    } else if (type === 'donor') {
+      color = '#ffd700';
+      prefix = '🏆';
+    } else if (type === 'error') {
+      color = '#ff3b30';
+      prefix = '❌';
+    } else if (type === 'success') {
+      color = '#28a745';
+      prefix = '✅';
+    }
+    
+    p.innerHTML = `<span style="color:#555">[${time}]</span> <span style="color:${color}">${prefix} ${msg}</span>`;
     p.style.marginBottom = '4px';
-    p.style.fontWeight = isGift ? '600' : 'normal';
+    p.style.fontSize = '11px';
     logContainer.appendChild(p);
     logContainer.scrollTop = logContainer.scrollHeight;
-    while(logContainer.children.length > 30) logContainer.removeChild(logContainer.firstChild);
+    while(logContainer.children.length > 50) logContainer.removeChild(logContainer.firstChild);
   }
 
   function showReceipt(username, amount, coins, fee, total, transactionId) {
@@ -856,11 +904,11 @@
   function processSend() {
     const username = currentUser();
     if (!username) {
-      addEventLog('❌ Ingresa un username para enviar', true);
+      addEventLog('Ingresa un username para enviar', 'error');
       return false;
     }
     if (selectedCoins > balance) {
-      addEventLog(`❌ Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, true);
+      addEventLog(`Saldo insuficiente. Disponible: ${fmtCoins(balance)} 🪙`, 'error');
       return false;
     }
     
@@ -906,7 +954,7 @@
           pendingTransaction.transactionId
         );
         
-        addEventLog(`✅ Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`);
+        addEventLog(`Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`, 'success');
         
         pendingTransaction = null;
       });
@@ -916,7 +964,7 @@
   function closeReceiptAndClear() {
     document.getElementById('receiptModal').style.display = 'none';
     clearUserInput();
-    addEventLog('✨ Usuario limpiado. Puedes enviar otro gift ✨');
+    addEventLog('Usuario limpiado. Puedes enviar otro gift', 'info');
   }
 
   function initWebSocket() {
@@ -924,7 +972,7 @@
     ws = new WebSocket(`${protocol}//${location.host}`);
     
     ws.onopen = () => {
-      addEventLog('✅ Conectado al servidor en tiempo real');
+      addEventLog('Conectado al servidor en tiempo real', 'success');
       reconnectAttempts = 0;
     };
     
@@ -932,15 +980,17 @@
       try {
         const data = JSON.parse(e.data);
         
-        if (data.type === 'viewers') {
+        if (data.type === 'viewers_update') {
           currentViewersMap.clear();
           data.data.forEach(v => currentViewersMap.set(v.username, v));
           renderViewerSuggestions();
-          addEventLog(`📡 Actualizado: ${data.data.length} gifters en línea`);
+          addEventLog(`Lista actualizada: ${data.data.length} gifters en línea`, 'info');
           
         } else if (data.type === 'new_gift') {
-          // Actualización en tiempo real de nuevo regalo
           const gift = data.data;
+          giftCounter++;
+          
+          // Actualizar mapa
           if (!currentViewersMap.has(gift.username)) {
             currentViewersMap.set(gift.username, gift);
           } else {
@@ -953,12 +1003,11 @@
           }
           renderViewerSuggestions();
           
-          // Mostrar notificación flotante
-          showGiftNotification(gift.username, gift.giftName, gift.giftValue);
-          addEventLog(`🎁 <strong>@${gift.username}</strong> envió ${gift.giftName} (${gift.giftValue}💎) - Total: ${gift.totalGifts}💎`, false, true);
+          // Notificación y log
+          showGiftNotification(gift.username, gift.giftName, gift.diamondCount);
+          addEventLog(`@${gift.username} envió ${gift.giftName} (${gift.diamondCount}💎) - Total acumulado: ${gift.totalGifts}💎`, 'gift');
           
         } else if (data.type === 'new_donor') {
-          // Nuevo donador en tiempo real
           const donor = data.data;
           if (currentViewersMap.has(donor.username)) {
             const existing = currentViewersMap.get(donor.username);
@@ -969,7 +1018,7 @@
             currentViewersMap.set(donor.username, { ...donor, isDonor: true });
           }
           renderViewerSuggestions();
-          addEventLog(`🏆 <strong>@${donor.username}</strong> se ha convertido en DONADOR PERMANENTE! 🏆`, false, true);
+          addEventLog(`@${donor.username} se ha convertido en DONADOR PERMANENTE! 🏆`, 'donor');
           
         } else if (data.type === 'connection_status') {
           const badge = document.getElementById('connectionStatusBadge');
@@ -980,20 +1029,20 @@
             badge.innerHTML = '● Conectado';
             connectBtn.style.display = 'none';
             disconnectBtn.style.display = 'block';
-            addEventLog(`🎉 Conectado al live de @${data.username}`);
+            addEventLog(`Conectado al live de @${data.username}`, 'success');
           } else {
             badge.className = 'status-badge disconnected';
             badge.innerHTML = '● Desconectado';
             connectBtn.style.display = 'block';
             disconnectBtn.style.display = 'none';
-            if (data.message) addEventLog(data.message);
+            if (data.message) addEventLog(data.message, 'error');
           }
         }
       } catch(e) { console.error(e); }
     };
     
     ws.onclose = () => {
-      addEventLog('🔌 Desconectado del servidor, reconectando...', true);
+      addEventLog('Desconectado del servidor, reconectando...', 'error');
       reconnectAttempts++;
       const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 30000);
       setTimeout(initWebSocket, delay);
@@ -1011,18 +1060,18 @@
       const res = await fetch(`/search/${username}`);
       const data = await res.json();
       if (data.avatar) {
-        addEventLog(`✅ @${username} - Foto encontrada 📸`);
+        addEventLog(`@${username} - Foto encontrada 📸`, 'success');
         if (currentViewersMap.has(username)) {
           currentViewersMap.get(username).avatar = data.avatar;
         }
         updateUserViews();
       } else if (data.found) {
-        addEventLog(`✅ @${username} encontrado como gifter (${data.totalGifts || 0}💎 totales)`);
+        addEventLog(`@${username} encontrado como gifter (${data.totalGifts || 0}💎 totales)`, 'success');
       } else {
-        addEventLog(`⚠️ @${username} no ha enviado regalos aún`);
+        addEventLog(`@${username} no ha enviado regalos aún`, 'error');
       }
     } catch(e) {
-      addEventLog(`❌ Error: ${e.message}`, true);
+      addEventLog(`Error: ${e.message}`, 'error');
     } finally {
       btn.textContent = original;
       btn.disabled = false;
@@ -1031,16 +1080,19 @@
 
   document.getElementById('connectTikTokBtn').onclick = async () => {
     const username = document.getElementById('tiktokUsername').value.trim();
-    if (!username) { alert('Ingresa el username de TikTok que está en vivo'); return; }
+    if (!username) { alert('Ingresa el username de TikTok que está en vivo (ej: elmattriste)'); return; }
     const btn = document.getElementById('connectTikTokBtn');
     btn.textContent = 'Conectando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') addEventLog(`✅ Conectado a @${username}`);
-      else addEventLog(`❌ Error: ${data.error}`, true);
-    } catch(e) { addEventLog(`❌ Error: ${e.message}`, true); }
+      if (data.status === 'connected') {
+        addEventLog(`Conectado a @${username} - Detectando regalos...`, 'success');
+      } else {
+        addEventLog(`Error: ${data.error}`, 'error');
+      }
+    } catch(e) { addEventLog(`Error: ${e.message}`, 'error'); }
     finally { btn.textContent = '🔴 Conectar Live'; btn.disabled = false; }
   };
 
@@ -1050,10 +1102,10 @@
     btn.disabled = true;
     try {
       await fetch('/disconnect');
-      addEventLog('✅ Desconectado del live');
+      addEventLog('Desconectado del live', 'info');
       currentViewersMap.clear();
       renderViewerSuggestions();
-    } catch(e) { addEventLog(`❌ Error: ${e.message}`, true); }
+    } catch(e) { addEventLog(`Error: ${e.message}`, 'error'); }
     finally { btn.textContent = '⛔ Desconectar'; btn.disabled = false; }
   };
 
@@ -1063,7 +1115,7 @@
       selectedCoins = parseInt(amount);
       selectedUsd = +(selectedCoins * 0.0106).toFixed(2);
       document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
-      addEventLog(`✨ Personalizado: ${fmtCoins(selectedCoins)} 🪙 - ${fmtUSD(selectedUsd)}`);
+      addEventLog(`Personalizado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`, 'info');
     }
   };
 
@@ -1100,7 +1152,7 @@
         btn.classList.add('active');
         selectedCoins = p.coins;
         selectedUsd = p.usd;
-        addEventLog(`✨ Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`);
+        addEventLog(`Seleccionado: ${fmtCoins(selectedCoins)} créditos - ${fmtUSD(selectedUsd)}`, 'info');
       };
       grid.appendChild(btn);
     });
@@ -1110,6 +1162,8 @@
   initWebSocket();
   updateUserViews();
   updateBalanceUI();
+  
+  addEventLog('🚀 Sistema listo! Conecta a un live para detectar regalos', 'success');
 </script>
 </body>
 </html>
