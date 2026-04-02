@@ -273,7 +273,7 @@
       color: #666;
     }
 
-    /* Consola dentro de la tarjeta del live - TAMAÑO FIJO SIN AUTO-SCROLL */
+    /* Consola - SIN AUTO-SCROLL */
     .live-console {
       background: #1e1e1e;
       border-radius: 12px;
@@ -329,6 +329,120 @@
     .log-warning { color: #dcdcaa; }
     .log-error { color: #f48771; }
     .log-timestamp { color: #858585; margin-right: 6px; font-size: 9px; }
+
+    /* MODAL DE CONFIRMACIÓN MEJORADO */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 28px;
+      max-width: 340px;
+      width: 90%;
+      padding: 0;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    @keyframes modalIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      background: linear-gradient(135deg, #fe2c55, #ff4f7a);
+      padding: 20px;
+      color: white;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .modal-header p {
+      margin: 5px 0 0;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    .modal-body {
+      padding: 20px;
+    }
+    .transaction-details {
+      background: #f8f8fa;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+    .detail-label {
+      font-size: 13px;
+      color: #666;
+    }
+    .detail-value {
+      font-weight: 700;
+      color: #333;
+    }
+    .detail-value.highlight {
+      color: #fe2c55;
+      font-size: 16px;
+    }
+    .payment-method-modal {
+      background: linear-gradient(135deg, #1e2a3a, #0f1722);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+    }
+    .modal-buttons button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-cancel-modal {
+      background: #f0f0f0;
+      color: #666;
+    }
+    .btn-cancel-modal:hover {
+      background: #e0e0e0;
+    }
+    .btn-confirm-modal {
+      background: #fe2c55;
+      color: white;
+    }
+    .btn-confirm-modal:hover {
+      background: #e8254a;
+      transform: scale(1.02);
+    }
 
     /* Notificación de regalo */
     .gift-notification {
@@ -407,30 +521,28 @@
       font-size: 9px;
     }
 
-    /* Modales */
-    .modal, .loading-overlay, .receipt {
+    /* Loading y Receipt */
+    .loading-overlay, .receipt {
       display: none;
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1200;
       align-items: center;
       justify-content: center;
     }
-    .modal-content, .loading-card, .receipt-content {
+    .loading-card, .receipt-content {
       background: white;
-      border-radius: 24px;
-      max-width: 350px;
+      border-radius: 28px;
+      max-width: 320px;
       width: 90%;
-      padding: 24px;
+      padding: 32px;
       text-align: center;
     }
-    .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
-    .btn-confirm { background: #fe2c55; color: white; }
-    .btn-cancel { background: #f0f0f0; color: #666; }
     .spinner {
       width: 50px;
       height: 50px;
@@ -466,15 +578,49 @@
       font-size: 32px;
       color: white;
     }
-    .receipt-details { background: #f8f8fa; border-radius: 16px; padding: 16px; text-align: left; margin: 16px 0; }
-    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .receipt-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #28a745;
+      margin-bottom: 16px;
+    }
+    .receipt-details {
+      background: #f8f8fa;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      margin: 16px 0;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .receipt-row:last-child { border-bottom: none; }
     .receipt-label { color: #666; font-size: 13px; }
     .receipt-value { font-weight: 700; color: #333; }
-    .receipt-total { background: #fe2c55; color: white; padding: 12px; border-radius: 12px; margin-top: 12px; font-weight: 800; }
-    .btn-close { width: 100%; padding: 12px; background: #fe2c55; color: white; border: none; border-radius: 12px; font-weight: 600; margin-top: 12px; cursor: pointer; }
+    .receipt-total {
+      background: #fe2c55;
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      font-weight: 800;
+    }
+    .btn-close {
+      width: 100%;
+      padding: 14px;
+      background: #fe2c55;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-weight: 700;
+      margin-top: 12px;
+      cursor: pointer;
+    }
     datalist { background: white; border-radius: 12px; }
 
-    /* Scrollbar pequeña */
     .console-content::-webkit-scrollbar {
       width: 4px;
     }
@@ -554,7 +700,7 @@
       </div>
     </div>
 
-    <!-- TikTok Live CON CONSOLA DENTRO -->
+    <!-- TikTok Live CON CONSOLA -->
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <span>📱 TikTok Live</span>
@@ -569,10 +715,9 @@
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-bottom:10px"></div>
       
-      <!-- CONSOLA DENTRO DE LA MISMA TARJETA - SIN AUTO-SCROLL -->
       <div class="live-console">
         <div class="console-header">
-          <h4>📋 CONSOLA EN VIVO - EVENTOS EN TIEMPO REAL</h4>
+          <h4>📋 CONSOLA EN VIVO</h4>
           <div class="console-buttons">
             <button id="clearConsoleBtn">🗑️ Limpiar</button>
           </div>
@@ -589,24 +734,44 @@
 
 <div id="giftNotificationContainer"></div>
 
-<!-- Modales -->
+<!-- MODAL DE CONFIRMACIÓN MEJORADO -->
 <div id="confirmModal" class="modal">
   <div class="modal-content">
-    <h3 style="margin-bottom:16px">Confirmar Envío</h3>
-    <p id="confirmMessage" style="margin-bottom:20px"></p>
-    <div class="modal-buttons">
-      <button class="btn-cancel" id="cancelBtn">Cancelar</button>
-      <button class="btn-confirm" id="confirmBtn">Confirmar Pago</button>
+    <div class="modal-header">
+      <h3>Confirmar Transacción</h3>
+      <p>Revisa los detalles antes de continuar</p>
+    </div>
+    <div class="modal-body">
+      <div class="transaction-details" id="confirmDetails">
+        <!-- Se llena con JS -->
+      </div>
+      <div class="payment-method-modal">
+        <div class="card-info">
+          <div class="card-icons">
+            <div class="mastercard-mini">
+              <span class="red-dot"></span>
+              <span class="yellow-dot"></span>
+            </div>
+          </div>
+          <span class="card-brand-text">Mastercard</span>
+        </div>
+        <div class="card-number-mini">•••• 6789</div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel-modal" id="cancelBtn">Cancelar</button>
+        <button class="btn-confirm-modal" id="confirmBtn">Confirmar Pago</button>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- Loading -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="loading-card">
     <div class="spinner"></div>
-    <div class="loading-text">Procesando transacción...</div>
-    <div class="loading-subtext">No cierres esta ventana</div>
-    <div class="loading-steps">
+    <div class="loading-text" style="font-weight:700; margin-bottom:8px">Procesando transacción...</div>
+    <div class="loading-subtext" style="font-size:12px; color:#888">No cierres esta ventana</div>
+    <div class="loading-steps" style="margin-top:16px; text-align:left">
       <div class="step" id="step1"><span class="step-icon">○</span><span>Verificando datos de pago</span></div>
       <div class="step" id="step2"><span class="step-icon">○</span><span>Conectando con Mastercard</span></div>
       <div class="step" id="step3"><span class="step-icon">○</span><span>Autorizando transacción</span></div>
@@ -615,6 +780,7 @@
   </div>
 </div>
 
+<!-- Receipt -->
 <div id="receiptModal" class="receipt">
   <div class="receipt-content">
     <div class="receipt-icon">✓</div>
@@ -632,7 +798,6 @@
   let priorityUsers = new Set();
   let ws = null;
   let pendingTransaction = null;
-  let autoScrollEnabled = true; // Control de auto-scroll
 
   const cardLast4 = "6789";
   const packs = [
@@ -648,6 +813,7 @@
   function currentUser() { return document.getElementById('usernameInput').value.trim().replace(/^@/,''); }
   function updateBalanceUI() { document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
 
+  // Console log SIN auto-scroll forzado
   function addConsoleLog(message, type = 'info') {
     const consoleContent = document.getElementById('consoleContent');
     const logEntry = document.createElement('div');
@@ -656,23 +822,10 @@
     logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
     consoleContent.appendChild(logEntry);
     
-    // Solo hacer scroll si el usuario no ha interactuado con la consola
-    if (autoScrollEnabled) {
-      logEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    
     while(consoleContent.children.length > 150) {
       consoleContent.removeChild(consoleContent.firstChild);
     }
   }
-
-  // Detectar cuando el usuario hace scroll manual en la consola
-  const consoleContent = document.getElementById('consoleContent');
-  consoleContent.addEventListener('scroll', () => {
-    // Si el usuario hace scroll hacia arriba, desactivar auto-scroll
-    const isAtBottom = consoleContent.scrollHeight - consoleContent.scrollTop <= consoleContent.clientHeight + 10;
-    autoScrollEnabled = isAtBottom;
-  });
 
   function showGiftNotification(data) {
     const container = document.getElementById('giftNotificationContainer');
@@ -810,7 +963,32 @@
     const fee = selectedUsd * 0.06;
     const total = selectedUsd + fee;
     pendingTransaction = { username, amount: selectedUsd, coins: selectedCoins, fee, total, transactionId: generateTransactionId() };
-    document.getElementById('confirmMessage').innerHTML = `<div style="text-align:left"><div><strong>Enviar a:</strong> @${username}</div><div><strong>Créditos:</strong> ${fmtCoins(selectedCoins)} 🪙</div><div><strong>Total:</strong> ${fmtUSD(total)}</div></div>`;
+    
+    // Llenar modal de confirmación mejorado
+    const confirmDetails = document.getElementById('confirmDetails');
+    confirmDetails.innerHTML = `
+      <div class="detail-row">
+        <span class="detail-label">Usuario destino</span>
+        <span class="detail-value">@${username}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Cantidad de créditos</span>
+        <span class="detail-value highlight">${fmtCoins(selectedCoins)} 🪙</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Valor</span>
+        <span class="detail-value">${fmtUSD(selectedUsd)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Comisión (6%)</span>
+        <span class="detail-value">${fmtUSD(fee)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Total a pagar</span>
+        <span class="detail-value highlight">${fmtUSD(total)}</span>
+      </div>
+    `;
+    
     document.getElementById('confirmModal').style.display = 'flex';
     return true;
   }
@@ -945,7 +1123,6 @@
   document.getElementById('clearConsoleBtn').onclick = () => {
     document.getElementById('consoleContent').innerHTML = '<div class="log-entry log-info"><span class="log-timestamp">[LIMPIADO]</span> Consola limpiada</div>';
     addConsoleLog('📋 Consola limpiada', 'info');
-    autoScrollEnabled = true;
   };
 
   document.getElementById('openCustom').onclick = () => {
@@ -995,4 +1172,4 @@
   addConsoleLog('🚀 Aplicación iniciada - Esperando eventos en tiempo real', 'success');
 </script>
 </body>
-</html>
+          </html>
