@@ -175,6 +175,8 @@
 
 <script>
   let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null;
+  let pendingAutoCopyUser = null; // Usuario que envió regalo y espera ser auto-copiado después de mi envío
+  
   const packs = [{coins:30,usd:0.32},{coins:350,usd:3.65},{coins:700,usd:7.25},{coins:1400,usd:14.49},{coins:3500,usd:36.20}];
   function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
   function fmtUSD(n){ return 'US$'+Number(n).toFixed(2); }
@@ -182,18 +184,33 @@
   function updateBalanceUI(){ document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
   function addChatLog(msg, isErr){ const log=document.getElementById('chatLog'), p=document.createElement('div'); p.textContent=msg; p.style.color=isErr?'#ff3b30':'#666'; p.style.fontSize='11px'; p.style.marginBottom='4px'; log.appendChild(p); log.scrollTop=log.scrollHeight; while(log.children.length>20) log.removeChild(log.firstChild); }
 
-  // Notificación SOLO después de que YO envío
-  function showMyTransactionNotification(username, nickname, giftName, giftCount, avatarUrl) {
+  // Notificación de regalo de TikTok (sin auto-copiar, solo guarda el usuario para después)
+  function showTikTokGiftNotification(username, nickname, giftName, giftCount, avatarUrl) {
+    // Guardar este usuario para auto-copiar DESPUÉS de que YO envíe
+    pendingAutoCopyUser = { username, nickname, giftName, giftCount, avatarUrl };
+    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Listo para copiar después de tu envío`);
+  }
+
+  // Notificación DESPUÉS de que YO envío (se copia el usuario que estaba pendiente)
+  function showMyTransactionNotification() {
+    if (!pendingAutoCopyUser) {
+      addChatLog(`⚠️ No hay usuario pendiente para auto-copiar`, true);
+      return;
+    }
+    const { username, nickname, giftName, giftCount, avatarUrl } = pendingAutoCopyUser;
     const area = document.getElementById('notificationsArea');
     area.innerHTML = '';
     const notification = document.createElement('div');
     notification.className = 'gift-notification';
-    notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Recibió ${giftName} x${giftCount} de ti</div></div>`;
+    notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Envió ${giftName} x${giftCount} al live - Listo para enviar</div></div>`;
     area.appendChild(notification);
+    // Auto-copiar a la casilla
     document.getElementById('usernameInput').value = username;
     updateUserViews();
-    addChatLog(`📋 Usuario @${username} auto-copiado para próximo envío`);
+    addChatLog(`📋 Usuario @${username} auto-copiado a la casilla - Puedes enviarle gift ahora`);
     setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
+    // Limpiar el pending después de usarlo
+    pendingAutoCopyUser = null;
   }
 
   function updateDonorList(donors){
@@ -252,14 +269,13 @@
     if(!username){ addChatLog('❌ Ingresa un username para enviar',true); return; }
     if(selectedCoins>balance){ addChatLog(`❌ Saldo insuficiente: ${fmtCoins(balance)} 🪙`,true); return; }
     const fee=selectedUsd*0.06, total=selectedUsd+fee, txId='TXN'+Date.now();
-    const donorInfo = currentDonorsMap.get(username);
     showLoadingAnimation(()=>{
       balance-=selectedCoins;
       updateBalanceUI();
       showReceipt(username,selectedUsd,selectedCoins,fee,total,txId);
       addChatLog(`✅ Enviado ${fmtCoins(selectedCoins)} 🪙 a @${username}`);
-      // Mostrar notificación de mi transacción completada
-      showMyTransactionNotification(username, donorInfo?.nickname || username, 'Gift', selectedCoins, donorInfo?.avatar);
+      // DESPUÉS de enviar, mostrar notificación con el usuario pendiente (el que envió regalo)
+      showMyTransactionNotification();
     });
   }
 
@@ -295,10 +311,18 @@
           if(data.connected){ badge.className='status-badge connected'; badge.innerHTML='● Conectado'; connectBtn.style.display='none'; disconnectBtn.style.display='block'; addChatLog(`🎉 Conectado al live de @${data.username}`); }
           else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
         }
-        // NOTIFICACIONES DE REGALOS DE TIKTOK - NO mostrar ventana flotante, solo log
         else if(data.type==='gift'){ 
+          // Cuando alguien envía un regalo en el live, guardarlo para auto-copiar después de MI envío
           addChatLog(`🎁 @${data.username} (${data.nickname}) envió ${data.giftName} x${data.giftCount} al live`);
-          // Actualizar donadores en segundo plano
+          // Guardar este usuario para auto-copiar después
+          pendingAutoCopyUser = {
+            username: data.username,
+            nickname: data.nickname,
+            giftName: data.giftName,
+            giftCount: data.giftCount,
+            avatarUrl: data.avatar
+          };
+          // Actualizar donadores
           if(!currentDonorsMap.has(data.username)){
             currentDonorsMap.set(data.username, {username: data.username, nickname: data.nickname, avatar: data.avatar});
             updateDonorList(Array.from(currentDonorsMap.values()));
@@ -322,7 +346,7 @@
   document.getElementById('disconnectTikTokBtn').onclick=async()=>{
     const btn=document.getElementById('disconnectTikTokBtn');
     btn.textContent='Desconectando...'; btn.disabled=true;
-    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); }
+    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); pendingAutoCopyUser = null; }
     catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
     finally{ btn.textContent='Desconectar'; btn.disabled=false; }
   };
@@ -350,4 +374,4 @@
   updateBalanceUI();
 </script>
 </body>
-                                                                                                                                                                                                             </html>
+                                                                                                                                                                                                                                                      </html>
