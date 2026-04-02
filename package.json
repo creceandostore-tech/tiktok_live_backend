@@ -1,7 +1,7 @@
 {
   "name": "tiktok-live-gift-detector",
   "version": "1.0.0",
-  "description": "Detector de regalos de TikTok LIVE con perfiles reales",
+  "description": "Detector de regalos de TikTok LIVE - Versión Definitiva",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
