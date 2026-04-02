@@ -1,14 +1,10 @@
 {
-  "name": "tiktok-live-backend",
+  "name": "tiktok-live",
   "version": "1.0.0",
-  "description": "TikTok Live Gift Detector con EulerStream API",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "scripts": { "start": "node index.js" },
   "dependencies": {
-    "express": "4.18.2",
-    "node-fetch": "2.7.0",
-    "ws": "8.14.2"
+    "express": "^4.18.2",
+    "tiktok-live-connector": "2.1.1-beta1",
+    "ws": "^8.14.2"
   }
 }
