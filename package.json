@@ -1,7 +1,7 @@
 {
   "name": "tiktok-live-backend",
   "version": "1.0.0",
-  "description": "Backend TikTok Live con gifters y reconexión robusta",
+  "description": "Backend TikTok Live con gifters en tiempo real",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
