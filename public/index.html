@@ -175,7 +175,7 @@
 
 <script>
   let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null;
-  let nextDonor = null; // El siguiente donador (el que envió el último regalo en el live)
+  let nextDonor = null;
   
   const packs = [{coins:30,usd:0.32},{coins:350,usd:3.65},{coins:700,usd:7.25},{coins:1400,usd:14.49},{coins:3500,usd:36.20}];
   function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
@@ -184,9 +184,8 @@
   function updateBalanceUI(){ document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
   function addChatLog(msg, isErr){ const log=document.getElementById('chatLog'), p=document.createElement('div'); p.textContent=msg; p.style.color=isErr?'#ff3b30':'#666'; p.style.fontSize='11px'; p.style.marginBottom='4px'; log.appendChild(p); log.scrollTop=log.scrollHeight; while(log.children.length>20) log.removeChild(log.firstChild); }
 
-  // Mostrar ventana flotante con el siguiente donador y auto-copiarlo
   function showNextDonorNotification() {
-    console.log('🔔 showNextDonorNotification called, nextDonor:', nextDonor);
+    console.log('🔔 Mostrando notificación, nextDonor:', nextDonor);
     if (!nextDonor) {
       addChatLog(`⚠️ No hay próximo donador para auto-copiar`, true);
       return;
@@ -198,21 +197,17 @@
     notification.className = 'gift-notification';
     notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Envió ${giftName} x${giftCount} al live - Listo para enviar</div></div>`;
     area.appendChild(notification);
-    // Auto-copiar a la casilla
     document.getElementById('usernameInput').value = username;
     updateUserViews();
     addChatLog(`📋 Siguiente donador @${username} auto-copiado a la casilla`);
     setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
-    // Limpiar nextDonor después de mostrarlo
     nextDonor = null;
   }
 
-  // Guardar el donador que envió regalo en el live (será el próximo después de mi envío)
   function saveNextDonor(username, nickname, giftName, giftCount, avatarUrl) {
-    console.log('💾 saveNextDonor called:', username, giftName, giftCount);
+    console.log('💾 Guardando donador:', username, giftName, giftCount);
     nextDonor = { username, nickname, giftName, giftCount, avatarUrl };
-    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Será el próximo donador después de tu envío`);
-    // Actualizar lista de donadores
+    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live`);
     if(!currentDonorsMap.has(username)){
       currentDonorsMap.set(username, {username: username, nickname: nickname, avatar: avatarUrl});
       updateDonorList(Array.from(currentDonorsMap.values()));
@@ -280,7 +275,6 @@
       updateBalanceUI();
       showReceipt(username,selectedUsd,selectedCoins,fee,total,txId);
       addChatLog(`✅ Enviado ${fmtCoins(selectedCoins)} 🪙 a @${username}`);
-      // DESPUÉS de enviar, mostrar ventana flotante con el siguiente donador (el que envió el último regalo)
       showNextDonorNotification();
     });
   }
@@ -311,19 +305,21 @@
     ws.onmessage=(e)=>{
       try{
         const data=JSON.parse(e.data);
-        console.log('📨 WebSocket message received:', data.type);
-        if(data.type==='donors'){ updateDonorList(data.data); addChatLog(`🎁 ${data.data.length} donadores registrados`); }
+        console.log('📨 Mensaje recibido:', data.type);
+        if(data.type==='donors'){ 
+          updateDonorList(data.data); 
+          addChatLog(`🎁 ${data.data.length} donadores registrados`);
+        }
         else if(data.type==='connection_status'){
           const badge=document.getElementById('connectionStatusBadge'), connectBtn=document.getElementById('connectTikTokBtn'), disconnectBtn=document.getElementById('disconnectTikTokBtn');
           if(data.connected){ badge.className='status-badge connected'; badge.innerHTML='● Conectado'; connectBtn.style.display='none'; disconnectBtn.style.display='block'; addChatLog(`🎉 Conectado al live de @${data.username}`); }
           else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
         }
         else if(data.type==='gift'){ 
-          console.log('🎁 GIFT event received:', data);
-          // Cuando alguien envía un regalo en el live, guardarlo como el próximo donador
+          console.log('🎁 Gift recibido:', data);
           saveNextDonor(data.username, data.nickname, data.giftName, data.giftCount, data.avatar);
         }
-      }catch(e){ console.error('Error parsing message:', e); }
+      }catch(e){ console.error('Error:', e); }
     };
     ws.onclose=()=>{ addChatLog('🔌 Desconectado, reconectando...',true); setTimeout(initWebSocket,3000); };
   }
@@ -333,7 +329,7 @@
     if(!username){ alert('Ingresa un username de TikTok en vivo'); return; }
     const btn=document.getElementById('connectTikTokBtn');
     btn.textContent='Conectando...'; btn.disabled=true;
-    try{ const res=await fetch(`/connect/${username}`), data=await res.json(); if(data.status==='connected') addChatLog(`✅ Conectado a @${username} (reconexión automática activa)`); else addChatLog(`❌ Error: ${data.error}`,true); }
+    try{ const res=await fetch(`/connect/${username}`), data=await res.json(); if(data.status==='connected') addChatLog(`✅ Conectado a @${username}`); else addChatLog(`❌ Error: ${data.error}`,true); }
     catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
     finally{ btn.textContent='Conectar Live'; btn.disabled=false; }
   };
