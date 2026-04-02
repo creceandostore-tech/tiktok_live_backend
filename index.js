@@ -19,7 +19,7 @@ let currentUsername = null;
 let isManualDisconnect = false;
 let reconnectTimer = null;
 
-const MAX_VIEWERS = 3000;
+const MAX_VIEWERS = 5000;
 const RECONNECT_DELAY = 3000;
 
 const avatarCache = new Map();
@@ -98,6 +98,21 @@ function broadcastViewers() {
     }));
     
     const message = JSON.stringify({ type: 'viewers', data: viewerList, total: viewers.size });
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            try { client.send(message); } catch (e) {}
+        }
+    });
+}
+
+function broadcastGift(username, giftName, avatar) {
+    const message = JSON.stringify({ 
+        type: 'gift', 
+        username: username, 
+        giftName: giftName,
+        avatar: avatar
+    });
+    console.log(`🎁 Enviando notificación de regalo: @${username} - ${giftName}`);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             try { client.send(message); } catch (e) {}
@@ -230,17 +245,20 @@ function setupEventHandlers(username) {
                     viewer.avatar = avatar;
                     pendingUpdate = true;
                     scheduleBroadcast();
+                    return avatar;
                 } else {
                     const apiAvatar = await fetchAvatarFromTikTool(uniqueId);
                     if (apiAvatar) {
                         viewer.avatar = apiAvatar;
                         pendingUpdate = true;
                         scheduleBroadcast();
-                        console.log(`🖼️ Foto para @${uniqueId}`);
+                        return apiAvatar;
                     }
                 }
             }
+            return viewer.avatar;
         }
+        return null;
     }
     
     tiktokConnection.on(WebcastEvent.CONNECTED, () => {
@@ -277,11 +295,22 @@ function setupEventHandlers(username) {
         if (data?.user?.uniqueId) removeViewer(data.user.uniqueId);
     });
     
-    tiktokConnection.on(WebcastEvent.GIFT, (data) => {
+    // EVENTO DE REGALO - Enviar notificación al frontend
+    tiktokConnection.on(WebcastEvent.GIFT, async (data) => {
         if (data?.user) {
-            console.log(`🎁 REGALO de @${data.user.uniqueId}`);
+            const userId = data.user.uniqueId;
+            const giftName = data.giftName || 'Gift';
+            const repeatCount = data.repeatCount || 1;
+            console.log(`🎁 REGALO de @${userId}: ${giftName} x${repeatCount}`);
+            
+            // Agregar a la lista de espectadores
             addViewer(data.user);
-            updateAvatarFromGift(data.user.uniqueId, data.user);
+            
+            // Obtener avatar para la notificación
+            const avatar = await updateAvatarFromGift(userId, data.user);
+            
+            // Enviar notificación al frontend
+            broadcastGift(userId, `${giftName} x${repeatCount}`, avatar);
         }
     });
     
