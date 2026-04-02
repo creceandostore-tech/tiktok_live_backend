@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Nija Coin - TikTok Integration</title>
+  <title>Nija Coin - TikTok Real-Time Gifts</title>
   <style>
     * {
       margin: 0;
@@ -467,10 +467,40 @@
       background: #f0f0f0;
       border-radius: 12px;
       padding: 10px;
-      height: 100px;
+      height: 150px;
       overflow-y: auto;
       font-size: 12px;
       margin-top: 10px;
+    }
+    .gift-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #fe2c55, #ff4f7a);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-weight: 600;
+      animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+      z-index: 2000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      pointer-events: none;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+    .donor-badge {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      color: #333;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      margin-left: 6px;
+      font-weight: bold;
     }
     datalist {
       background: white;
@@ -562,10 +592,10 @@
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
     </div>
 
-    <!-- Log de eventos -->
+    <!-- Eventos en tiempo real -->
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">📋 Eventos</div>
-      <div id="eventLog" class="log-container">✨ Esperando eventos de regalos...</div>
+      <div style="font-weight:600; margin-bottom:10px">⚡ Eventos en Tiempo Real</div>
+      <div id="eventLog" class="log-container">✨ Esperando regalos...</div>
     </div>
   </div>
 </div>
@@ -665,10 +695,23 @@
     document.getElementById('hitPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
+  // Mostrar notificación flotante de regalo
+  function showGiftNotification(username, giftName, giftValue) {
+    const notification = document.createElement('div');
+    notification.className = 'gift-notification';
+    notification.innerHTML = `🎁 ${username} envió ${giftName} (${giftValue}💎)`;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+
   function updateSuggestions() {
     const datalist = document.getElementById('viewersList');
     const viewersArray = Array.from(currentViewersMap.values());
     datalist.innerHTML = '';
+    // Ordenar por total de regalos (mayor primero)
+    viewersArray.sort((a, b) => (b.totalGifts || 0) - (a.totalGifts || 0));
     viewersArray.forEach(viewer => {
       const option = document.createElement('option');
       option.value = viewer.username;
@@ -677,7 +720,8 @@
     
     const viewerCountSpan = document.getElementById('liveViewerCount');
     if(viewerCountSpan) {
-      viewerCountSpan.innerHTML = `🎁 ${viewersArray.length} gifters`;
+      const donorsCount = viewersArray.filter(v => v.isDonor).length;
+      viewerCountSpan.innerHTML = `🎁 ${viewersArray.length} gifters | 🏆 ${donorsCount} donadores`;
     }
   }
 
@@ -694,7 +738,7 @@
     const found = currentViewersMap.get(username);
     if (username && found) {
       hitName.textContent = found.nickname || username;
-      previewUser.textContent = `@${username}${found.isDonor ? ' 🏆 Donador' : ''}`;
+      previewUser.innerHTML = `@${username}${found.isDonor ? ' <span class="donor-badge">🏆 DONADOR</span>' : ''}`;
       if (found.avatar && found.avatar !== 'null') {
         hitPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
         hitPic.style.background = 'transparent';
@@ -704,27 +748,28 @@
       }
     } else if (username) {
       hitName.textContent = username;
-      previewUser.textContent = `@${username}`;
+      previewUser.innerHTML = `@${username}`;
       hitPic.innerHTML = '';
       hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     } else {
       hitName.textContent = 'Usuario';
-      previewUser.textContent = 'No seleccionado';
+      previewUser.innerHTML = 'No seleccionado';
       hitPic.innerHTML = '';
       hitPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     }
   }
 
-  function addEventLog(msg, isErr = false) {
+  function addEventLog(msg, isErr = false, isGift = false) {
     const logContainer = document.getElementById('eventLog');
     const p = document.createElement('div');
-    p.textContent = msg;
-    p.style.color = isErr ? '#ff3b30' : '#666';
+    p.innerHTML = msg;
+    p.style.color = isErr ? '#ff3b30' : (isGift ? '#fe2c55' : '#666');
     p.style.fontSize = '11px';
     p.style.marginBottom = '4px';
+    p.style.fontWeight = isGift ? '600' : 'normal';
     logContainer.appendChild(p);
     logContainer.scrollTop = logContainer.scrollHeight;
-    while(logContainer.children.length > 20) logContainer.removeChild(logContainer.firstChild);
+    while(logContainer.children.length > 30) logContainer.removeChild(logContainer.firstChild);
   }
 
   function showReceipt(username, amount, coins, fee, total, transactionId) {
@@ -796,12 +841,12 @@
           stepEl.querySelector('.step-icon').textContent = '✓';
           currentStep++;
           updateStep();
-        }, 1200);
+        }, 800);
       } else {
         setTimeout(() => {
           overlay.style.display = 'none';
           if (callback) callback();
-        }, 500);
+        }, 300);
       }
     }
     
@@ -879,18 +924,53 @@
     ws = new WebSocket(`${protocol}//${location.host}`);
     
     ws.onopen = () => {
-      addEventLog('✅ Conectado al servidor');
+      addEventLog('✅ Conectado al servidor en tiempo real');
       reconnectAttempts = 0;
     };
     
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        
         if (data.type === 'viewers') {
           currentViewersMap.clear();
           data.data.forEach(v => currentViewersMap.set(v.username, v));
           renderViewerSuggestions();
-          addEventLog(`🎁 ${data.data.length} gifters conectados`);
+          addEventLog(`📡 Actualizado: ${data.data.length} gifters en línea`);
+          
+        } else if (data.type === 'new_gift') {
+          // Actualización en tiempo real de nuevo regalo
+          const gift = data.data;
+          if (!currentViewersMap.has(gift.username)) {
+            currentViewersMap.set(gift.username, gift);
+          } else {
+            const existing = currentViewersMap.get(gift.username);
+            existing.totalGifts = gift.totalGifts;
+            existing.lastGiftTime = Date.now();
+            if (gift.isDonor) existing.isDonor = true;
+            if (gift.avatar) existing.avatar = gift.avatar;
+            currentViewersMap.set(gift.username, existing);
+          }
+          renderViewerSuggestions();
+          
+          // Mostrar notificación flotante
+          showGiftNotification(gift.username, gift.giftName, gift.giftValue);
+          addEventLog(`🎁 <strong>@${gift.username}</strong> envió ${gift.giftName} (${gift.giftValue}💎) - Total: ${gift.totalGifts}💎`, false, true);
+          
+        } else if (data.type === 'new_donor') {
+          // Nuevo donador en tiempo real
+          const donor = data.data;
+          if (currentViewersMap.has(donor.username)) {
+            const existing = currentViewersMap.get(donor.username);
+            existing.isDonor = true;
+            if (donor.avatar) existing.avatar = donor.avatar;
+            currentViewersMap.set(donor.username, existing);
+          } else {
+            currentViewersMap.set(donor.username, { ...donor, isDonor: true });
+          }
+          renderViewerSuggestions();
+          addEventLog(`🏆 <strong>@${donor.username}</strong> se ha convertido en DONADOR PERMANENTE! 🏆`, false, true);
+          
         } else if (data.type === 'connection_status') {
           const badge = document.getElementById('connectionStatusBadge');
           const connectBtn = document.getElementById('connectTikTokBtn');
@@ -937,7 +1017,7 @@
         }
         updateUserViews();
       } else if (data.found) {
-        addEventLog(`✅ @${username} encontrado como gifter`);
+        addEventLog(`✅ @${username} encontrado como gifter (${data.totalGifts || 0}💎 totales)`);
       } else {
         addEventLog(`⚠️ @${username} no ha enviado regalos aún`);
       }
