@@ -1,7 +1,7 @@
 {
   "name": "tiktok-live-backend",
   "version": "1.0.0",
-  "description": "Backend TikTok Live con gifters en tiempo real",
+  "description": "TikTok Live Gift Detector en Tiempo Real",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
