@@ -175,7 +175,7 @@
 
 <script>
   let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null;
-  let pendingAutoCopyUser = null; // Usuario que envió regalo y espera ser auto-copiado después de mi envío
+  let nextDonor = null; // El siguiente donador (el que envió el último regalo en el live)
   
   const packs = [{coins:30,usd:0.32},{coins:350,usd:3.65},{coins:700,usd:7.25},{coins:1400,usd:14.49},{coins:3500,usd:36.20}];
   function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
@@ -184,20 +184,13 @@
   function updateBalanceUI(){ document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
   function addChatLog(msg, isErr){ const log=document.getElementById('chatLog'), p=document.createElement('div'); p.textContent=msg; p.style.color=isErr?'#ff3b30':'#666'; p.style.fontSize='11px'; p.style.marginBottom='4px'; log.appendChild(p); log.scrollTop=log.scrollHeight; while(log.children.length>20) log.removeChild(log.firstChild); }
 
-  // Notificación de regalo de TikTok (sin auto-copiar, solo guarda el usuario para después)
-  function showTikTokGiftNotification(username, nickname, giftName, giftCount, avatarUrl) {
-    // Guardar este usuario para auto-copiar DESPUÉS de que YO envíe
-    pendingAutoCopyUser = { username, nickname, giftName, giftCount, avatarUrl };
-    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Listo para copiar después de tu envío`);
-  }
-
-  // Notificación DESPUÉS de que YO envío (se copia el usuario que estaba pendiente)
-  function showMyTransactionNotification() {
-    if (!pendingAutoCopyUser) {
-      addChatLog(`⚠️ No hay usuario pendiente para auto-copiar`, true);
+  // Mostrar ventana flotante con el siguiente donador y auto-copiarlo
+  function showNextDonorNotification() {
+    if (!nextDonor) {
+      addChatLog(`⚠️ No hay próximo donador para auto-copiar`, true);
       return;
     }
-    const { username, nickname, giftName, giftCount, avatarUrl } = pendingAutoCopyUser;
+    const { username, nickname, giftName, giftCount, avatarUrl } = nextDonor;
     const area = document.getElementById('notificationsArea');
     area.innerHTML = '';
     const notification = document.createElement('div');
@@ -207,10 +200,21 @@
     // Auto-copiar a la casilla
     document.getElementById('usernameInput').value = username;
     updateUserViews();
-    addChatLog(`📋 Usuario @${username} auto-copiado a la casilla - Puedes enviarle gift ahora`);
+    addChatLog(`📋 Siguiente donador @${username} auto-copiado a la casilla`);
     setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
-    // Limpiar el pending después de usarlo
-    pendingAutoCopyUser = null;
+    // Limpiar nextDonor después de mostrarlo
+    nextDonor = null;
+  }
+
+  // Guardar el donador que envió regalo en el live (será el próximo después de mi envío)
+  function saveNextDonor(username, nickname, giftName, giftCount, avatarUrl) {
+    nextDonor = { username, nickname, giftName, giftCount, avatarUrl };
+    addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Será el próximo donador después de tu envío`);
+    // Actualizar lista de donadores
+    if(!currentDonorsMap.has(username)){
+      currentDonorsMap.set(username, {username: username, nickname: nickname, avatar: avatarUrl});
+      updateDonorList(Array.from(currentDonorsMap.values()));
+    }
   }
 
   function updateDonorList(donors){
@@ -274,8 +278,8 @@
       updateBalanceUI();
       showReceipt(username,selectedUsd,selectedCoins,fee,total,txId);
       addChatLog(`✅ Enviado ${fmtCoins(selectedCoins)} 🪙 a @${username}`);
-      // DESPUÉS de enviar, mostrar notificación con el usuario pendiente (el que envió regalo)
-      showMyTransactionNotification();
+      // DESPUÉS de enviar, mostrar ventana flotante con el siguiente donador (el que envió el último regalo)
+      showNextDonorNotification();
     });
   }
 
@@ -312,21 +316,8 @@
           else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
         }
         else if(data.type==='gift'){ 
-          // Cuando alguien envía un regalo en el live, guardarlo para auto-copiar después de MI envío
-          addChatLog(`🎁 @${data.username} (${data.nickname}) envió ${data.giftName} x${data.giftCount} al live`);
-          // Guardar este usuario para auto-copiar después
-          pendingAutoCopyUser = {
-            username: data.username,
-            nickname: data.nickname,
-            giftName: data.giftName,
-            giftCount: data.giftCount,
-            avatarUrl: data.avatar
-          };
-          // Actualizar donadores
-          if(!currentDonorsMap.has(data.username)){
-            currentDonorsMap.set(data.username, {username: data.username, nickname: data.nickname, avatar: data.avatar});
-            updateDonorList(Array.from(currentDonorsMap.values()));
-          }
+          // Cuando alguien envía un regalo en el live, guardarlo como el próximo donador
+          saveNextDonor(data.username, data.nickname, data.giftName, data.giftCount, data.avatar);
         }
       }catch(e){ console.error(e); }
     };
@@ -346,7 +337,7 @@
   document.getElementById('disconnectTikTokBtn').onclick=async()=>{
     const btn=document.getElementById('disconnectTikTokBtn');
     btn.textContent='Desconectando...'; btn.disabled=true;
-    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); pendingAutoCopyUser = null; }
+    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); nextDonor = null; }
     catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
     finally{ btn.textContent='Desconectar'; btn.disabled=false; }
   };
@@ -374,4 +365,4 @@
   updateBalanceUI();
 </script>
 </body>
-                                                                                                                                                                                                                                                      </html>
+</html>
