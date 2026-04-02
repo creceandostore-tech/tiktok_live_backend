@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Nija Coin - TikTok Donors</title>
+  <title>Nija Coin - TikTok Integration</title>
   <style>
     * {
       margin: 0;
@@ -133,7 +133,7 @@
     .btn-pink { background: #fe2c55; color: white; }
     .btn-red { background: #ff3b30; color: white; }
     .btn-small { padding: 8px 16px; font-size: 14px; }
-    .donor {
+    .user-card {
       display: flex;
       gap: 12px;
       align-items: center;
@@ -142,14 +142,14 @@
       border-radius: 12px;
       border: 1px solid #eee;
     }
-    .donor-pic {
+    .user-pic {
       width: 48px;
       height: 48px;
       border-radius: 50%;
       background: linear-gradient(135deg, #ddd, #ccc);
       overflow: hidden;
     }
-    .donor-pic img { width: 100%; height: 100%; object-fit: cover; }
+    .user-pic img { width: 100%; height: 100%; object-fit: cover; }
     .status-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -472,7 +472,7 @@
       font-size: 12px;
       color: #666;
     }
-    .donors-count {
+    .users-count {
       font-size: 12px;
       color: #fe2c55;
       margin-top: 5px;
@@ -510,16 +510,16 @@
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:10px">Enviar Gift a Donador</div>
+      <div style="font-weight:600; margin-bottom:10px">Enviar Gift</div>
       <div class="row">
-        <input id="usernameInput" class="input" list="donorsList" placeholder="Usuario donador" autocomplete="off" />
-        <datalist id="donorsList"></datalist>
+        <input id="usernameInput" class="input" list="usersList" placeholder="Usuario de TikTok" autocomplete="off" />
+        <datalist id="usersList"></datalist>
         <button id="searchUserBtn" class="btn btn-pink">Buscar</button>
       </div>
-      <div class="donor">
-        <div class="donor-pic" id="donorPic"></div>
+      <div class="user-card">
+        <div class="user-pic" id="userPic"></div>
         <div>
-          <div id="donorName" style="font-weight:600">Donador</div>
+          <div id="userName" style="font-weight:600">Usuario</div>
           <div id="previewUser" style="font-size:12px; color:#888">No seleccionado</div>
         </div>
       </div>
@@ -551,7 +551,7 @@
 
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-        <span>📱 TikTok Live - SOLO DONADORES</span>
+        <span>📱 TikTok Live</span>
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
@@ -561,7 +561,7 @@
         <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
         <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
-      <div id="liveDonorCount" class="donors-count"></div>
+      <div id="liveUserCount" class="users-count"></div>
     </div>
 
     <div class="card">
@@ -570,7 +570,7 @@
         <input id="chatCommandInput" class="input" placeholder="!send @usuario 100" />
         <button id="sendChatCommand" class="btn btn-pink btn-small">📨 Enviar</button>
       </div>
-      <div id="chatLog" class="chat-log">💬 Esperando donadores...</div>
+      <div id="chatLog" class="chat-log">💬 Esperando actividad...</div>
     </div>
   </div>
 </div>
@@ -635,8 +635,8 @@
   let balance = 78000000;
   let selectedCoins = 350;
   let selectedUsd = 3.65;
-  let currentDonorsMap = new Map();
-  let priorityDonors = new Set();
+  let currentUsersMap = new Map();
+  let priorityUsers = new Set();
   let ws = null;
   let pendingTransaction = null;
 
@@ -661,66 +661,66 @@
 
   function clearUserInput() {
     document.getElementById('usernameInput').value = '';
-    document.getElementById('donorName').textContent = 'Donador';
+    document.getElementById('userName').textContent = 'Usuario';
     document.getElementById('previewUser').textContent = 'No seleccionado';
-    document.getElementById('donorPic').innerHTML = '';
-    document.getElementById('donorPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+    document.getElementById('userPic').innerHTML = '';
+    document.getElementById('userPic').style.background = 'linear-gradient(135deg, #ddd, #ccc)';
   }
 
-  function getSortedDonors() {
-    const donorsArray = Array.from(currentDonorsMap.values());
-    const priorityDonorsList = donorsArray.filter(d => priorityDonors.has(d.username));
-    const normalDonors = donorsArray.filter(d => !priorityDonors.has(d.username));
-    return [...priorityDonorsList, ...normalDonors];
+  function getSortedUsers() {
+    const usersArray = Array.from(currentUsersMap.values());
+    const priorityUsersList = usersArray.filter(u => priorityUsers.has(u.username));
+    const normalUsers = usersArray.filter(u => !priorityUsers.has(u.username));
+    return [...priorityUsersList, ...normalUsers];
   }
 
   function updateSuggestions() {
-    const datalist = document.getElementById('donorsList');
-    const sortedDonors = getSortedDonors();
+    const datalist = document.getElementById('usersList');
+    const sortedUsers = getSortedUsers();
     datalist.innerHTML = '';
-    sortedDonors.forEach(donor => {
+    sortedUsers.forEach(user => {
       const option = document.createElement('option');
-      option.value = donor.username;
+      option.value = user.username;
       datalist.appendChild(option);
     });
     
-    const donorCountSpan = document.getElementById('liveDonorCount');
-    if(donorCountSpan) {
-      donorCountSpan.innerHTML = `🎁 ${sortedDonors.length} donadores en el live`;
+    const userCountSpan = document.getElementById('liveUserCount');
+    if(userCountSpan) {
+      userCountSpan.innerHTML = `👥 ${sortedUsers.length} usuarios activos`;
     }
   }
 
-  function renderDonorSuggestions() {
+  function renderUserSuggestions() {
     updateSuggestions();
     updateUserViews();
   }
 
   function updateUserViews() {
     const username = currentUser();
-    const donorPic = document.getElementById('donorPic');
-    const donorName = document.getElementById('donorName');
+    const userPic = document.getElementById('userPic');
+    const userName = document.getElementById('userName');
     const previewUser = document.getElementById('previewUser');
-    const found = currentDonorsMap.get(username);
+    const found = currentUsersMap.get(username);
     if (username && found) {
-      donorName.textContent = found.nickname || username;
+      userName.textContent = found.nickname || username;
       previewUser.textContent = `@${username}`;
       if (found.avatar && found.avatar !== 'null') {
-        donorPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
-        donorPic.style.background = 'transparent';
+        userPic.innerHTML = `<img src="${found.avatar}" onerror="this.style.display='none'">`;
+        userPic.style.background = 'transparent';
       } else {
-        donorPic.innerHTML = '';
-        donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+        userPic.innerHTML = '';
+        userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
       }
     } else if (username) {
-      donorName.textContent = username;
+      userName.textContent = username;
       previewUser.textContent = `@${username}`;
-      donorPic.innerHTML = '';
-      donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+      userPic.innerHTML = '';
+      userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     } else {
-      donorName.textContent = 'Donador';
+      userName.textContent = 'Usuario';
       previewUser.textContent = 'No seleccionado';
-      donorPic.innerHTML = '';
-      donorPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
+      userPic.innerHTML = '';
+      userPic.style.background = 'linear-gradient(135deg, #ddd, #ccc)';
     }
   }
 
@@ -820,7 +820,7 @@
   function processSend() {
     const username = currentUser();
     if (!username) {
-      addChatLog('❌ Ingresa un username de donador para enviar', true);
+      addChatLog('❌ Ingresa un username para enviar', true);
       return false;
     }
     if (selectedCoins > balance) {
@@ -895,17 +895,17 @@
       const data = await res.json();
       if (data.avatar) {
         addChatLog(`✅ @${username} - Foto de perfil encontrada 📸`);
-        if (currentDonorsMap.has(username)) {
-          currentDonorsMap.get(username).avatar = data.avatar;
-          currentDonorsMap.get(username).nickname = data.nickname;
+        if (currentUsersMap.has(username)) {
+          currentUsersMap.get(username).avatar = data.avatar;
+          currentUsersMap.get(username).nickname = data.nickname;
         } else {
-          currentDonorsMap.set(username, { username, nickname: data.nickname, avatar: data.avatar });
+          currentUsersMap.set(username, { username, nickname: data.nickname, avatar: data.avatar });
         }
         updateUserViews();
       } else if (data.found) {
-        addChatLog(`✅ @${username} es un donador en el live`);
+        addChatLog(`✅ @${username} encontrado en el live`);
       } else {
-        addChatLog(`⚠️ @${username} no es donador en el live actual`);
+        addChatLog(`⚠️ @${username} no está en el live actual`);
       }
     } catch(e) {
       addChatLog(`❌ Error: ${e.message}`, true);
@@ -922,11 +922,11 @@
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === 'donors') {
-          currentDonorsMap.clear();
-          data.data.forEach(d => currentDonorsMap.set(d.username, d));
-          renderDonorSuggestions();
-          addChatLog(`🎁 ${data.data.length} donadores activos (total: ${data.total})`);
+        if (data.type === 'users') {
+          currentUsersMap.clear();
+          data.data.forEach(u => currentUsersMap.set(u.username, u));
+          renderUserSuggestions();
+          addChatLog(`👥 ${data.data.length} usuarios activos (total: ${data.total})`);
         } else if (data.type === 'command') {
           addChatLog(`📡 Comando recibido: ${data.command}`);
         } else if (data.type === 'connection_status') {
@@ -938,7 +938,7 @@
             badge.innerHTML = '● Conectado';
             connectBtn.style.display = 'none';
             disconnectBtn.style.display = 'block';
-            addChatLog(`🎉 Conectado al live de @${data.username} - Mostrando SOLO donadores`);
+            addChatLog(`🎉 Conectado al live de @${data.username}`);
           } else {
             badge.className = 'status-badge disconnected';
             badge.innerHTML = '● Desconectado';
@@ -948,10 +948,10 @@
           if (data.message) addChatLog(data.message);
         } else if (data.type === 'gift') {
           const giftUser = data.username;
-          if (giftUser && currentDonorsMap.has(giftUser)) {
-            priorityDonors.add(giftUser);
+          if (giftUser && currentUsersMap.has(giftUser)) {
+            priorityUsers.add(giftUser);
             addChatLog(`🎁 @${giftUser} envió un regalo`);
-            renderDonorSuggestions();
+            renderUserSuggestions();
           }
         }
       } catch(e) { console.error(e); }
@@ -971,7 +971,7 @@
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username} - Monitoreando SOLO donadores`);
+      if (data.status === 'connected') addChatLog(`✅ Conectado exitosamente a @${username}`);
       else addChatLog(`❌ Error: ${data.error} - ¿El usuario está en vivo?`, true);
     } catch(e) { addChatLog(`❌ Error de conexión: ${e.message}`, true); }
     finally { btn.textContent = 'Conectar Live'; btn.disabled = false; }
@@ -984,9 +984,9 @@
     try {
       await fetch('/disconnect');
       addChatLog('✅ Desconectado manualmente del live');
-      priorityDonors.clear();
-      currentDonorsMap.clear();
-      renderDonorSuggestions();
+      priorityUsers.clear();
+      currentUsersMap.clear();
+      renderUserSuggestions();
     } catch(e) { addChatLog(`❌ Error: ${e.message}`, true); }
     finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
   };
@@ -1007,12 +1007,12 @@
   };
 
   const sendButton = document.createElement('button');
-  sendButton.textContent = 'Enviar Gift a Donador';
+  sendButton.textContent = 'Enviar Gift';
   sendButton.className = 'btn btn-pink btn-small';
   sendButton.style.marginTop = '12px';
   sendButton.style.width = '100%';
   sendButton.onclick = processSend;
-  document.querySelector('.donor').appendChild(sendButton);
+  document.querySelector('.user-card').appendChild(sendButton);
 
   document.getElementById('confirmBtn').onclick = confirmSend;
   document.getElementById('cancelBtn').onclick = () => {
@@ -1051,4 +1051,4 @@
   updateBalanceUI();
 </script>
 </body>
-  </html>
+        </html>
