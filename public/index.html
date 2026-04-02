@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Nija Coin - TikTok Real-Time Gifts</title>
+  <title>Nija Coin - TikTok Live Gifts</title>
   <style>
     * {
       margin: 0;
@@ -292,8 +292,6 @@
       padding: 24px;
       text-align: center;
       animation: modalIn 0.3s ease;
-      max-height: 90vh;
-      overflow-y: auto;
     }
     @keyframes modalIn {
       from { transform: scale(0.9); opacity: 0; }
@@ -506,9 +504,10 @@
       font-weight: bold;
     }
     .gifter-stats {
-      font-size: 11px;
+      font-size: 12px;
       color: #fe2c55;
-      margin-top: 5px;
+      margin-top: 8px;
+      font-weight: 500;
     }
     .live-indicator {
       display: inline-block;
@@ -527,14 +526,11 @@
       background: white;
       border-radius: 12px;
     }
-    .log-entry-gift {
-      color: #fe2c55 !important;
-      font-weight: bold;
-    }
-    .log-entry-donor {
-      color: #ffd700 !important;
-      font-weight: bold;
-    }
+    .log-gift { color: #fe2c55 !important; font-weight: bold; }
+    .log-donor { color: #ffd700 !important; font-weight: bold; }
+    .log-success { color: #28a745 !important; }
+    .log-error { color: #ff3b30 !important; }
+    .log-info { color: #888 !important; }
   </style>
 </head>
 <body>
@@ -612,14 +608,14 @@
         <span id="connectionStatusBadge" class="status-badge disconnected">● Desconectado</span>
       </div>
       <div class="row">
-        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo (ej: elmattriste)" />
+        <input id="tiktokUsername" class="input" placeholder="Usuario en vivo (ej: soygabrielbeato)" />
       </div>
       <div class="button-group">
         <button id="connectTikTokBtn" class="btn btn-pink btn-small">🔴 Conectar Live</button>
         <button id="disconnectTikTokBtn" class="btn btn-red btn-small" style="display:none">⛔ Desconectar</button>
       </div>
-      <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-top:8px"></div>
-      <div id="gifterStats" class="gifter-stats"></div>
+      <div id="liveViewerCount" class="gifter-stats">0 gifts | 0 donadores</div>
+      <div id="totalGiftsDisplay" class="gifter-stats">Total de regalos acumulados: 0 💎</div>
     </div>
 
     <!-- Eventos en tiempo real -->
@@ -662,22 +658,10 @@
     <div class="loading-text">Procesando transacción...</div>
     <div class="loading-subtext">No cierres esta ventana</div>
     <div class="loading-steps">
-      <div class="step" id="step1">
-        <span class="step-icon">○</span>
-        <span>Verificando datos de pago</span>
-      </div>
-      <div class="step" id="step2">
-        <span class="step-icon">○</span>
-        <span>Conectando con Mastercard</span>
-      </div>
-      <div class="step" id="step3">
-        <span class="step-icon">○</span>
-        <span>Autorizando transacción</span>
-      </div>
-      <div class="step" id="step4">
-        <span class="step-icon">○</span>
-        <span>Confirmando envío de créditos</span>
-      </div>
+      <div class="step" id="step1"><span class="step-icon">○</span><span>Verificando datos de pago</span></div>
+      <div class="step" id="step2"><span class="step-icon">○</span><span>Conectando con Mastercard</span></div>
+      <div class="step" id="step3"><span class="step-icon">○</span><span>Autorizando transacción</span></div>
+      <div class="step" id="step4"><span class="step-icon">○</span><span>Confirmando envío de créditos</span></div>
     </div>
   </div>
 </div>
@@ -700,7 +684,7 @@
   let ws = null;
   let pendingTransaction = null;
   let reconnectAttempts = 0;
-  let giftCounter = 0;
+  let totalGiftsAccumulated = 0;
 
   const cardLast4 = "6789";
 
@@ -737,6 +721,15 @@
     setTimeout(() => notification.remove(), 3000);
   }
 
+  function updateStats() {
+    const viewersArray = Array.from(currentViewersMap.values());
+    const donorsCount = viewersArray.filter(v => v.isDonor).length;
+    const totalGifts = viewersArray.reduce((sum, v) => sum + (v.totalGifts || 0), 0);
+    
+    document.getElementById('liveViewerCount').innerHTML = `🎁 ${viewersArray.length} gifters | 🏆 ${donorsCount} donadores`;
+    document.getElementById('totalGiftsDisplay').innerHTML = `💰 Total de regalos acumulados: ${totalGifts} 💎`;
+  }
+
   function updateSuggestions() {
     const datalist = document.getElementById('viewersList');
     const viewersArray = Array.from(currentViewersMap.values());
@@ -748,13 +741,7 @@
       datalist.appendChild(option);
     });
     
-    const viewerCountSpan = document.getElementById('liveViewerCount');
-    const gifterStatsSpan = document.getElementById('gifterStats');
-    if(viewerCountSpan) {
-      const donorsCount = viewersArray.filter(v => v.isDonor).length;
-      viewerCountSpan.innerHTML = `🎁 ${viewersArray.length} gifters | 🏆 ${donorsCount} donadores`;
-      gifterStatsSpan.innerHTML = `💰 Total de regalos acumulados: ${viewersArray.reduce((sum, v) => sum + (v.totalGifts || 0), 0)}💎`;
-    }
+    updateStats();
   }
 
   function renderViewerSuggestions() {
@@ -768,6 +755,7 @@
     const hitName = document.getElementById('hitName');
     const previewUser = document.getElementById('previewUser');
     const found = currentViewersMap.get(username);
+    
     if (username && found) {
       hitName.textContent = found.nickname || username;
       previewUser.innerHTML = `@${username}${found.isDonor ? ' <span class="donor-badge">🏆 DONADOR</span>' : ''}<br><small style="color:#fe2c55">${found.totalGifts || 0}💎 totales</small>`;
@@ -796,23 +784,24 @@
     const p = document.createElement('div');
     const time = new Date().toLocaleTimeString();
     
-    let color = '#888';
+    let colorClass = 'log-info';
     let prefix = '📌';
+    
     if (type === 'gift') {
-      color = '#fe2c55';
+      colorClass = 'log-gift';
       prefix = '🎁';
     } else if (type === 'donor') {
-      color = '#ffd700';
+      colorClass = 'log-donor';
       prefix = '🏆';
     } else if (type === 'error') {
-      color = '#ff3b30';
+      colorClass = 'log-error';
       prefix = '❌';
     } else if (type === 'success') {
-      color = '#28a745';
+      colorClass = 'log-success';
       prefix = '✅';
     }
     
-    p.innerHTML = `<span style="color:#555">[${time}]</span> <span style="color:${color}">${prefix} ${msg}</span>`;
+    p.innerHTML = `<span style="color:#555">[${time}]</span> <span class="${colorClass}">${prefix} ${msg}</span>`;
     p.style.marginBottom = '4px';
     p.style.fontSize = '11px';
     logContainer.appendChild(p);
@@ -825,43 +814,16 @@
     const now = new Date();
     
     receiptDetails.innerHTML = `
-      <div class="receipt-row">
-        <span class="receipt-label">Usuario destino</span>
-        <span class="receipt-value">@${username}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Cantidad de créditos</span>
-        <span class="receipt-value">${fmtCoins(coins)} 🪙</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Valor</span>
-        <span class="receipt-value">${fmtUSD(amount)}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Comisión (6%)</span>
-        <span class="receipt-value">${fmtUSD(fee)}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Total pagado</span>
-        <span class="receipt-value">${fmtUSD(total)}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Tarjeta</span>
-        <span class="receipt-value">💳 Mastercard •••• ${cardLast4}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Fecha</span>
-        <span class="receipt-value">${now.toLocaleString()}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">ID Transacción</span>
-        <span class="receipt-value">${transactionId}</span>
-      </div>
-      <div class="receipt-total">
-        Transferencia completada ✓
-      </div>
+      <div class="receipt-row"><span class="receipt-label">Usuario destino</span><span class="receipt-value">@${username}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Cantidad de créditos</span><span class="receipt-value">${fmtCoins(coins)} 🪙</span></div>
+      <div class="receipt-row"><span class="receipt-label">Valor</span><span class="receipt-value">${fmtUSD(amount)}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Comisión (6%)</span><span class="receipt-value">${fmtUSD(fee)}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Total pagado</span><span class="receipt-value">${fmtUSD(total)}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Tarjeta</span><span class="receipt-value">💳 Mastercard •••• ${cardLast4}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${now.toLocaleString()}</span></div>
+      <div class="receipt-row"><span class="receipt-label">ID Transacción</span><span class="receipt-value">${transactionId}</span></div>
+      <div class="receipt-total">Transferencia completada ✓</div>
     `;
-    
     document.getElementById('receiptModal').style.display = 'flex';
   }
 
@@ -883,7 +845,6 @@
         const stepEl = document.getElementById(steps[currentStep]);
         stepEl.className = 'step active';
         stepEl.querySelector('.step-icon').textContent = '◐';
-        
         setTimeout(() => {
           stepEl.className = 'step done';
           stepEl.querySelector('.step-icon').textContent = '✓';
@@ -897,7 +858,6 @@
         }, 300);
       }
     }
-    
     updateStep();
   }
 
@@ -926,9 +886,9 @@
     
     document.getElementById('confirmMessage').innerHTML = `
       <div style="text-align:left">
-        <div style="margin-bottom:8px"><strong>Enviar a:</strong> @${username}</div>
-        <div style="margin-bottom:8px"><strong>Créditos:</strong> ${fmtCoins(selectedCoins)} 🪙</div>
-        <div style="margin-bottom:8px"><strong>Valor:</strong> ${fmtUSD(selectedUsd)}</div>
+        <div><strong>Enviar a:</strong> @${username}</div>
+        <div><strong>Créditos:</strong> ${fmtCoins(selectedCoins)} 🪙</div>
+        <div><strong>Valor:</strong> ${fmtUSD(selectedUsd)}</div>
         <div><strong>Comisión:</strong> ${fmtUSD(fee)}</div>
         <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee"><strong>Total:</strong> ${fmtUSD(total)}</div>
       </div>
@@ -940,11 +900,9 @@
   function confirmSend() {
     if (pendingTransaction) {
       document.getElementById('confirmModal').style.display = 'none';
-      
       showLoadingAnimation(() => {
         balance -= pendingTransaction.coins;
         updateBalanceUI();
-        
         showReceipt(
           pendingTransaction.username,
           pendingTransaction.amount,
@@ -953,9 +911,7 @@
           pendingTransaction.total,
           pendingTransaction.transactionId
         );
-        
         addEventLog(`Enviado ${fmtCoins(pendingTransaction.coins)} 🪙 a @${pendingTransaction.username}`, 'success');
-        
         pendingTransaction = null;
       });
     }
@@ -982,40 +938,32 @@
         
         if (data.type === 'viewers_update') {
           currentViewersMap.clear();
-          data.data.forEach(v => currentViewersMap.set(v.username, v));
+          if (data.data && Array.isArray(data.data)) {
+            data.data.forEach(v => currentViewersMap.set(v.username, v));
+          }
           renderViewerSuggestions();
-          addEventLog(`Lista actualizada: ${data.data.length} gifters en línea`, 'info');
           
         } else if (data.type === 'new_gift') {
           const gift = data.data;
-          giftCounter++;
-          
-          // Actualizar mapa
           if (!currentViewersMap.has(gift.username)) {
             currentViewersMap.set(gift.username, gift);
           } else {
             const existing = currentViewersMap.get(gift.username);
             existing.totalGifts = gift.totalGifts;
-            existing.lastGiftTime = Date.now();
             if (gift.isDonor) existing.isDonor = true;
             if (gift.avatar) existing.avatar = gift.avatar;
             currentViewersMap.set(gift.username, existing);
           }
           renderViewerSuggestions();
-          
-          // Notificación y log
           showGiftNotification(gift.username, gift.giftName, gift.diamondCount);
-          addEventLog(`@${gift.username} envió ${gift.giftName} (${gift.diamondCount}💎) - Total acumulado: ${gift.totalGifts}💎`, 'gift');
+          addEventLog(`@${gift.username} envió ${gift.giftName} (${gift.diamondCount}💎) - Total: ${gift.totalGifts}💎`, 'gift');
           
         } else if (data.type === 'new_donor') {
           const donor = data.data;
           if (currentViewersMap.has(donor.username)) {
             const existing = currentViewersMap.get(donor.username);
             existing.isDonor = true;
-            if (donor.avatar) existing.avatar = donor.avatar;
             currentViewersMap.set(donor.username, existing);
-          } else {
-            currentViewersMap.set(donor.username, { ...donor, isDonor: true });
           }
           renderViewerSuggestions();
           addEventLog(`@${donor.username} se ha convertido en DONADOR PERMANENTE! 🏆`, 'donor');
@@ -1024,21 +972,26 @@
           const badge = document.getElementById('connectionStatusBadge');
           const connectBtn = document.getElementById('connectTikTokBtn');
           const disconnectBtn = document.getElementById('disconnectTikTokBtn');
+          
           if (data.connected) {
             badge.className = 'status-badge connected';
             badge.innerHTML = '● Conectado';
             connectBtn.style.display = 'none';
             disconnectBtn.style.display = 'block';
-            addEventLog(`Conectado al live de @${data.username}`, 'success');
+            if (data.username) {
+              addEventLog(`Conectado al live de @${data.username} 🎉`, 'success');
+            }
           } else {
             badge.className = 'status-badge disconnected';
             badge.innerHTML = '● Desconectado';
             connectBtn.style.display = 'block';
             disconnectBtn.style.display = 'none';
-            if (data.message) addEventLog(data.message, 'error');
+            if (data.message && !data.message.includes('undefined')) {
+              addEventLog(data.message, 'error');
+            }
           }
         }
-      } catch(e) { console.error(e); }
+      } catch(e) { console.error('Error parsing message:', e); }
     };
     
     ws.onclose = () => {
@@ -1068,7 +1021,7 @@
       } else if (data.found) {
         addEventLog(`@${username} encontrado como gifter (${data.totalGifts || 0}💎 totales)`, 'success');
       } else {
-        addEventLog(`@${username} no ha enviado regalos aún`, 'error');
+        addEventLog(`@${username} no ha enviado regalos aún`, 'info');
       }
     } catch(e) {
       addEventLog(`Error: ${e.message}`, 'error');
@@ -1080,17 +1033,17 @@
 
   document.getElementById('connectTikTokBtn').onclick = async () => {
     const username = document.getElementById('tiktokUsername').value.trim();
-    if (!username) { alert('Ingresa el username de TikTok que está en vivo (ej: elmattriste)'); return; }
+    if (!username) { alert('Ingresa el username de TikTok que está en vivo (ej: soygabrielbeato)'); return; }
     const btn = document.getElementById('connectTikTokBtn');
     btn.textContent = 'Conectando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/connect/${username}`);
       const data = await res.json();
-      if (data.status === 'connected') {
-        addEventLog(`Conectado a @${username} - Detectando regalos...`, 'success');
+      if (data.status === 'connected' || data.status === 'connecting') {
+        addEventLog(`Conectando a @${username}...`, 'info');
       } else {
-        addEventLog(`Error: ${data.error}`, 'error');
+        addEventLog(`Error: ${data.error || 'No se pudo conectar'}`, 'error');
       }
     } catch(e) { addEventLog(`Error: ${e.message}`, 'error'); }
     finally { btn.textContent = '🔴 Conectar Live'; btn.disabled = false; }
@@ -1140,13 +1093,7 @@
     packs.forEach(p => {
       const btn = document.createElement('div');
       btn.className = 'pack' + (p.coins === selectedCoins ? ' active' : '');
-      btn.innerHTML = `
-        <div class="pack-coins">
-          <span class="coin-emoji">🪙</span>
-          ${fmtCoins(p.coins)}
-        </div>
-        <div class="pack-price">${fmtUSD(p.usd)}</div>
-      `;
+      btn.innerHTML = `<div class="pack-coins"><span class="coin-emoji">🪙</span>${fmtCoins(p.coins)}</div><div class="pack-price">${fmtUSD(p.usd)}</div>`;
       btn.onclick = () => {
         document.querySelectorAll('.pack').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -1162,7 +1109,6 @@
   initWebSocket();
   updateUserViews();
   updateBalanceUI();
-  
   addEventLog('🚀 Sistema listo! Conecta a un live para detectar regalos', 'success');
 </script>
 </body>
