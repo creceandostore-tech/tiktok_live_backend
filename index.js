@@ -21,7 +21,6 @@ let reconnectTimer = null;
 let reconnectAttempts = 0;
 
 const RECONNECT_DELAY = 3000;
-const MAX_RECONNECT_ATTEMPTS = Infinity; // Infinitos intentos
 
 const avatarCache = new Map();
 const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
@@ -89,10 +88,7 @@ function broadcastStatus(connected, message = '') {
 }
 
 function scheduleReconnect() {
-    if (isManualDisconnect) {
-        console.log('🔒 Desconexión manual, no se reconectará');
-        return;
-    }
+    if (isManualDisconnect) return;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     
     reconnectAttempts++;
@@ -126,7 +122,7 @@ async function connectToTikTok(username) {
             enableExtendedGiftInfo: true,
             processInitialData: true,
             requestPollingIntervalMs: 3000,
-            websocketTimeout: 120000, // Timeout más largo
+            websocketTimeout: 120000,
             enableWebsocketUpgrade: true,
             fetchChatMessages: true,
             fetchGiftMessages: true,
@@ -150,7 +146,6 @@ async function connectToTikTok(username) {
     }
 }
 
-// Limpiar donadores inactivos cada 2 minutos
 setInterval(() => {
     const now = Date.now();
     let removed = 0;
@@ -160,7 +155,6 @@ setInterval(() => {
     if (removed > 0) { console.log(`🧹 Limpiados ${removed} donadores inactivos`); broadcastDonors(); }
 }, 120000);
 
-// Heartbeat para mantener conexión viva
 setInterval(() => {
     if (tiktokConnection && tiktokConnection.isConnected && !isManualDisconnect) {
         console.log('💓 Heartbeat - Conexión activa');
