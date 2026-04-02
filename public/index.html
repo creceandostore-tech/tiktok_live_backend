@@ -273,7 +273,7 @@
       color: #666;
     }
 
-    /* Consola dentro de la tarjeta del live - TAMAÑO FIJO */
+    /* Consola dentro de la tarjeta del live - TAMAÑO FIJO SIN AUTO-SCROLL */
     .live-console {
       background: #1e1e1e;
       border-radius: 12px;
@@ -569,7 +569,7 @@
       </div>
       <div id="liveViewerCount" style="font-size:12px; color:#fe2c55; margin-bottom:10px"></div>
       
-      <!-- CONSOLA DENTRO DE LA MISMA TARJETA - TAMAÑO FIJO -->
+      <!-- CONSOLA DENTRO DE LA MISMA TARJETA - SIN AUTO-SCROLL -->
       <div class="live-console">
         <div class="console-header">
           <h4>📋 CONSOLA EN VIVO - EVENTOS EN TIEMPO REAL</h4>
@@ -632,6 +632,7 @@
   let priorityUsers = new Set();
   let ws = null;
   let pendingTransaction = null;
+  let autoScrollEnabled = true; // Control de auto-scroll
 
   const cardLast4 = "6789";
   const packs = [
@@ -654,12 +655,24 @@
     const timestamp = new Date().toLocaleTimeString();
     logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
     consoleContent.appendChild(logEntry);
-    logEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    // Solo hacer scroll si el usuario no ha interactuado con la consola
+    if (autoScrollEnabled) {
+      logEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     
     while(consoleContent.children.length > 150) {
       consoleContent.removeChild(consoleContent.firstChild);
     }
   }
+
+  // Detectar cuando el usuario hace scroll manual en la consola
+  const consoleContent = document.getElementById('consoleContent');
+  consoleContent.addEventListener('scroll', () => {
+    // Si el usuario hace scroll hacia arriba, desactivar auto-scroll
+    const isAtBottom = consoleContent.scrollHeight - consoleContent.scrollTop <= consoleContent.clientHeight + 10;
+    autoScrollEnabled = isAtBottom;
+  });
 
   function showGiftNotification(data) {
     const container = document.getElementById('giftNotificationContainer');
@@ -932,6 +945,7 @@
   document.getElementById('clearConsoleBtn').onclick = () => {
     document.getElementById('consoleContent').innerHTML = '<div class="log-entry log-info"><span class="log-timestamp">[LIMPIADO]</span> Consola limpiada</div>';
     addConsoleLog('📋 Consola limpiada', 'info');
+    autoScrollEnabled = true;
   };
 
   document.getElementById('openCustom').onclick = () => {
