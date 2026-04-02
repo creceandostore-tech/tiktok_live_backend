@@ -186,6 +186,7 @@
 
   // Mostrar ventana flotante con el siguiente donador y auto-copiarlo
   function showNextDonorNotification() {
+    console.log('🔔 showNextDonorNotification called, nextDonor:', nextDonor);
     if (!nextDonor) {
       addChatLog(`⚠️ No hay próximo donador para auto-copiar`, true);
       return;
@@ -208,6 +209,7 @@
 
   // Guardar el donador que envió regalo en el live (será el próximo después de mi envío)
   function saveNextDonor(username, nickname, giftName, giftCount, avatarUrl) {
+    console.log('💾 saveNextDonor called:', username, giftName, giftCount);
     nextDonor = { username, nickname, giftName, giftCount, avatarUrl };
     addChatLog(`🎁 @${username} (${nickname}) envió ${giftName} x${giftCount} al live - Será el próximo donador después de tu envío`);
     // Actualizar lista de donadores
@@ -309,6 +311,7 @@
     ws.onmessage=(e)=>{
       try{
         const data=JSON.parse(e.data);
+        console.log('📨 WebSocket message received:', data.type);
         if(data.type==='donors'){ updateDonorList(data.data); addChatLog(`🎁 ${data.data.length} donadores registrados`); }
         else if(data.type==='connection_status'){
           const badge=document.getElementById('connectionStatusBadge'), connectBtn=document.getElementById('connectTikTokBtn'), disconnectBtn=document.getElementById('disconnectTikTokBtn');
@@ -316,10 +319,11 @@
           else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
         }
         else if(data.type==='gift'){ 
+          console.log('🎁 GIFT event received:', data);
           // Cuando alguien envía un regalo en el live, guardarlo como el próximo donador
           saveNextDonor(data.username, data.nickname, data.giftName, data.giftCount, data.avatar);
         }
-      }catch(e){ console.error(e); }
+      }catch(e){ console.error('Error parsing message:', e); }
     };
     ws.onclose=()=>{ addChatLog('🔌 Desconectado, reconectando...',true); setTimeout(initWebSocket,3000); };
   }
