@@ -1,7 +1,7 @@
 {
   "name": "tiktok-live-backend",
   "version": "1.0.0",
-  "description": "TikTok Live Gift Detector - Modo Demo",
+  "description": "TikTok Live Gift Detector con EulerStream API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
