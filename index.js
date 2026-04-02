@@ -16,9 +16,6 @@ let tiktokConnection = null;
 let donors = new Map();
 let currentUsername = null;
 let isManualDisconnect = false;
-let reconnectTimer = null;
-
-const RECONNECT_DELAY = 3000;
 
 function broadcastDonors() {
     const donorList = Array.from(donors.values()).map(v => ({
@@ -33,7 +30,7 @@ function broadcastDonors() {
             try { client.send(message); } catch(e) {}
         }
     });
-    console.log(`📢 Donadores actuales: ${donorList.length}`);
+    console.log(`📢 Donadores: ${donorList.length}`);
 }
 
 function broadcastGift(username, nickname, giftName, giftCount, avatar) {
@@ -68,25 +65,10 @@ function broadcastStatus(connected, message = '') {
     });
 }
 
-function scheduleReconnect() {
-    if (isManualDisconnect) return;
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    
-    console.log(`🔄 Programando reconexión en ${RECONNECT_DELAY/1000}s...`);
-    broadcastStatus(false, `Reconectando...`);
-    
-    reconnectTimer = setTimeout(async () => {
-        if (!isManualDisconnect && currentUsername) {
-            await connectToTikTok(currentUsername);
-        }
-    }, RECONNECT_DELAY);
-}
-
 async function connectToTikTok(username) {
     username = username.replace(/^@/, '').trim();
     if (!username) return false;
     
-    if (reconnectTimer) clearTimeout(reconnectTimer);
     if (tiktokConnection) {
         try { await tiktokConnection.disconnect(); } catch(e) {}
         tiktokConnection = null;
@@ -100,7 +82,7 @@ async function connectToTikTok(username) {
         tiktokConnection = new TikTokLiveConnection(username, {
             enableExtendedGiftInfo: true,
             processInitialData: true,
-            requestPollingIntervalMs: 3000,
+            requestPollingIntervalMs: 2000,
             websocketTimeout: 60000,
             fetchChatMessages: true,
             fetchGiftMessages: true,
@@ -118,102 +100,69 @@ async function connectToTikTok(username) {
         console.error(`❌ Error: ${err.message}`);
         broadcastStatus(false, `Error: ${err.message}`);
         tiktokConnection = null;
-        scheduleReconnect();
         return false;
     }
 }
-
-// Limpiar donadores inactivos cada minuto
-setInterval(() => {
-    const now = Date.now();
-    let removed = 0;
-    donors.forEach((donor, id) => {
-        if (now - donor.lastSeen > 70000) {
-            donors.delete(id);
-            removed++;
-        }
-    });
-    if (removed > 0) {
-        console.log(`🧹 Limpiados ${removed} donadores inactivos`);
-        broadcastDonors();
-    }
-}, 60000);
 
 function setupEventHandlers(username) {
     if (!tiktokConnection) return;
     
     function addDonor(uniqueId, userData, giftName, giftCount) {
         try {
-            // Obtener avatar del evento
             let avatar = null;
             if (userData?.avatarThumbnail?.url) avatar = userData.avatarThumbnail.url;
             else if (userData?.avatarMedium?.url) avatar = userData.avatarMedium.url;
             else if (userData?.avatarLarge?.url) avatar = userData.avatarLarge.url;
             
-            // Obtener nickname
             let nickname = userData?.nickname || userData?.displayId || uniqueId;
-            
-            const now = Date.now();
             
             donors.set(uniqueId, {
                 username: uniqueId,
                 nickname: nickname,
                 avatar: avatar,
                 lastGift: `${giftName} x${giftCount}`,
-                lastSeen: now
+                lastSeen: Date.now()
             });
             
-            console.log(`✅ DONADOR REGISTRADO: @${uniqueId} (${nickname}) - ${giftName} x${giftCount}`);
-            
-            // Actualizar todos los clientes
+            console.log(`✅ DONADOR: @${uniqueId} (${nickname}) - ${giftName} x${giftCount}`);
             broadcastDonors();
-            
-            // Enviar notificación de gift
             broadcastGift(uniqueId, nickname, giftName, giftCount, avatar);
             
         } catch(e) {
-            console.error(`Error al registrar donador: ${e.message}`);
+            console.error(`Error: ${e.message}`);
         }
     }
     
-    // EVENTO PRINCIPAL - REGALOS
+    // Evento principal de regalos
     tiktokConnection.on(WebcastEvent.GIFT, (data) => {
         if (data && data.user) {
             const userId = data.user.uniqueId;
             const giftName = data.giftName || 'Gift';
             const repeatCount = data.repeatCount || 1;
-            
-            console.log(`🎁 REGALO DETECTADO: @${userId} - ${giftName} x${repeatCount}`);
-            
+            console.log(`🎁 REGALO: @${userId} - ${giftName} x${repeatCount}`);
             addDonor(userId, data.user, giftName, repeatCount);
         }
     });
     
-    // Evento de conexión
     tiktokConnection.on(WebcastEvent.CONNECTED, () => {
-        console.log(`✅ Conexión establecida con @${username}`);
+        console.log(`✅ Conectado`);
         broadcastStatus(true, `Conectado`);
     });
     
-    // Evento de desconexión
     tiktokConnection.on(WebcastEvent.DISCONNECTED, (reason) => {
-        console.log(`🔌 Desconectado: ${reason || 'Razón desconocida'}`);
+        console.log(`🔌 Desconectado: ${reason}`);
         broadcastStatus(false, `Desconectado`);
         if (!isManualDisconnect) {
-            setTimeout(() => scheduleReconnect(), 2000);
+            setTimeout(() => connectToTikTok(currentUsername), 3000);
         }
     });
     
-    // Evento de error
     tiktokConnection.on(WebcastEvent.ERROR, (error) => {
         console.error(`❌ Error: ${error.message}`);
-        broadcastStatus(false, `Error: ${error.message}`);
     });
     
-    // Estadísticas del live
     tiktokConnection.on(WebcastEvent.ROOM_USER_SEGMENT, (data) => {
-        const count = data?.viewerCount || 0;
-        console.log(`📊 Espectadores en live: ${count} | Donadores: ${donors.size}`);
+        console.log(`📊 Espectadores: ${data?.viewerCount || 0} | Donadores: ${donors.size}`);
     });
 }
 
@@ -273,7 +222,6 @@ app.get('/disconnect', async (req, res) => {
     try {
         console.log('🔌 Desconexión manual');
         isManualDisconnect = true;
-        if (reconnectTimer) clearTimeout(reconnectTimer);
         if (tiktokConnection) await tiktokConnection.disconnect();
         tiktokConnection = null;
         donors.clear();
@@ -286,20 +234,11 @@ app.get('/disconnect', async (req, res) => {
     }
 });
 
-app.get('/status', (req, res) => {
-    res.json({ 
-        connected: tiktokConnection?.isConnected || false,
-        username: currentUsername,
-        donors: donors.size
-    });
-});
-
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`🎁 Modo: Registro de donadores`);
-    console.log(`📡 Esperando regalos de TikTok Live...`);
+    console.log(`🚀 Servidor en puerto ${PORT}`);
+    console.log(`🎁 Esperando regalos...`);
 });
