@@ -174,7 +174,7 @@
 <div id="receiptModal" class="receipt"><div class="receipt-content"><div class="receipt-icon">✓</div><div class="receipt-title">¡Pago Exitoso!</div><div class="receipt-details" id="receiptDetails"></div><button class="btn-close" id="closeReceiptBtn">Cerrar</button></div></div>
 
 <script>
-  let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null, notificationTimeout = null;
+  let balance = 78000000, selectedCoins = 350, selectedUsd = 3.65, currentDonorsMap = new Map(), ws = null;
   const packs = [{coins:30,usd:0.32},{coins:350,usd:3.65},{coins:700,usd:7.25},{coins:1400,usd:14.49},{coins:3500,usd:36.20}];
   function fmtCoins(n){ return Number(n).toLocaleString('en-US'); }
   function fmtUSD(n){ return 'US$'+Number(n).toFixed(2); }
@@ -182,18 +182,18 @@
   function updateBalanceUI(){ document.getElementById('balanceAmount').textContent = fmtCoins(balance); }
   function addChatLog(msg, isErr){ const log=document.getElementById('chatLog'), p=document.createElement('div'); p.textContent=msg; p.style.color=isErr?'#ff3b30':'#666'; p.style.fontSize='11px'; p.style.marginBottom='4px'; log.appendChild(p); log.scrollTop=log.scrollHeight; while(log.children.length>20) log.removeChild(log.firstChild); }
 
-  function showGiftNotification(username, nickname, giftName, giftCount, avatarUrl) {
-    if (notificationTimeout) clearTimeout(notificationTimeout);
+  // Notificación SOLO después de que YO envío
+  function showMyTransactionNotification(username, nickname, giftName, giftCount, avatarUrl) {
     const area = document.getElementById('notificationsArea');
     area.innerHTML = '';
     const notification = document.createElement('div');
     notification.className = 'gift-notification';
-    notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Envió ${giftName} x${giftCount}</div></div>`;
+    notification.innerHTML = `<div class="gift-avatar">${avatarUrl ? `<img src="${avatarUrl}">` : '🎁'}</div><div class="gift-info"><div class="gift-username">@${username}${nickname && nickname !== username ? `<span class="gift-realname">(${nickname})</span>` : ''}<span class="auto-copy-badge">✓ Auto-copiado</span></div><div class="gift-detail">Recibió ${giftName} x${giftCount} de ti</div></div>`;
     area.appendChild(notification);
     document.getElementById('usernameInput').value = username;
     updateUserViews();
-    addChatLog(`📋 Usuario @${username} auto-copiado a la casilla`);
-    notificationTimeout = setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
+    addChatLog(`📋 Usuario @${username} auto-copiado para próximo envío`);
+    setTimeout(() => { notification.classList.add('fade-out'); setTimeout(() => notification.remove(), 500); }, 8000);
   }
 
   function updateDonorList(donors){
@@ -243,24 +243,30 @@
 
   function showReceipt(username, amount, coins, fee, total, txId){
     const details=document.getElementById('receiptDetails'), now=new Date();
-    details.innerHTML=`<div class="receipt-row"><span class="receipt-label">Usuario destino</span><span class="receipt-value">@${username}</span></div><div class="receipt-row"><span class="receipt-label">Créditos</span><span class="receipt-value">${fmtCoins(coins)} 🪙</span></div><div class="receipt-row"><span class="receipt-label">Valor</span><span class="receipt-value">${fmtUSD(amount)}</span></div><div class="receipt-row"><span class="receipt-label">Comisión</span><span class="receipt-value">${fmtUSD(fee)}</span></div><div class="receipt-row"><span class="receipt-label">Total</span><span class="receipt-value">${fmtUSD(total)}</span></div><div class="receipt-row"><span class="receipt-label">Tarjeta</span><span class="receipt-value">💳 Mastercard •••• 6789</span></div><div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${now.toLocaleString()}</span></div><div class="receipt-row"><span class="receipt-label">ID</span><span class="receipt-value">${txId}</span></div><div class="receipt-total">Transferencia completada ✓</div>`;
+    details.innerHTML=`<div class="receipt-row"><span class="receipt-label">Usuario destino</span><span class="receipt-value">@${username}</span></div><div class="receipt-row"><span class="receipt-label">Créditos enviados</span><span class="receipt-value">${fmtCoins(coins)} 🪙</span></div><div class="receipt-row"><span class="receipt-label">Valor</span><span class="receipt-value">${fmtUSD(amount)}</span></div><div class="receipt-row"><span class="receipt-label">Comisión</span><span class="receipt-value">${fmtUSD(fee)}</span></div><div class="receipt-row"><span class="receipt-label">Total</span><span class="receipt-value">${fmtUSD(total)}</span></div><div class="receipt-row"><span class="receipt-label">Tarjeta</span><span class="receipt-value">💳 Mastercard •••• 6789</span></div><div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${now.toLocaleString()}</span></div><div class="receipt-row"><span class="receipt-label">ID</span><span class="receipt-value">${txId}</span></div><div class="receipt-total">Transferencia completada ✓</div>`;
     document.getElementById('receiptModal').style.display='flex';
   }
 
   function processSend(){
     const username=currentUser();
-    if(!username){ addChatLog('❌ Ingresa un username',true); return; }
+    if(!username){ addChatLog('❌ Ingresa un username para enviar',true); return; }
     if(selectedCoins>balance){ addChatLog(`❌ Saldo insuficiente: ${fmtCoins(balance)} 🪙`,true); return; }
     const fee=selectedUsd*0.06, total=selectedUsd+fee, txId='TXN'+Date.now();
+    const donorInfo = currentDonorsMap.get(username);
     showLoadingAnimation(()=>{
       balance-=selectedCoins;
       updateBalanceUI();
       showReceipt(username,selectedUsd,selectedCoins,fee,total,txId);
       addChatLog(`✅ Enviado ${fmtCoins(selectedCoins)} 🪙 a @${username}`);
+      // Mostrar notificación de mi transacción completada
+      showMyTransactionNotification(username, donorInfo?.nickname || username, 'Gift', selectedCoins, donorInfo?.avatar);
     });
   }
 
-  function closeReceiptAndClear(){ document.getElementById('receiptModal').style.display='none'; document.getElementById('usernameInput').value=''; updateUserViews(); addChatLog('✨ Usuario limpiado ✨'); }
+  function closeReceiptAndClear(){ 
+    document.getElementById('receiptModal').style.display='none'; 
+    addChatLog('✨ Comprobante cerrado ✨');
+  }
 
   document.getElementById('searchUserBtn').onclick=async()=>{
     const username=currentUser();
@@ -283,13 +289,21 @@
     ws.onmessage=(e)=>{
       try{
         const data=JSON.parse(e.data);
-        if(data.type==='donors'){ updateDonorList(data.data); addChatLog(`🎁 ${data.data.length} donadores`); }
+        if(data.type==='donors'){ updateDonorList(data.data); addChatLog(`🎁 ${data.data.length} donadores registrados`); }
         else if(data.type==='connection_status'){
           const badge=document.getElementById('connectionStatusBadge'), connectBtn=document.getElementById('connectTikTokBtn'), disconnectBtn=document.getElementById('disconnectTikTokBtn');
-          if(data.connected){ badge.className='status-badge connected'; badge.innerHTML='● Conectado'; connectBtn.style.display='none'; disconnectBtn.style.display='block'; addChatLog(`🎉 Conectado a @${data.username}`); }
-          else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; }
+          if(data.connected){ badge.className='status-badge connected'; badge.innerHTML='● Conectado'; connectBtn.style.display='none'; disconnectBtn.style.display='block'; addChatLog(`🎉 Conectado al live de @${data.username}`); }
+          else{ badge.className='status-badge disconnected'; badge.innerHTML='● Desconectado'; connectBtn.style.display='block'; disconnectBtn.style.display='none'; if(data.message) addChatLog(data.message); }
         }
-        else if(data.type==='gift'){ addChatLog(`🎁 @${data.username} (${data.nickname}) envió ${data.giftName} x${data.giftCount}`); showGiftNotification(data.username,data.nickname,data.giftName,data.giftCount,data.avatar); }
+        // NOTIFICACIONES DE REGALOS DE TIKTOK - NO mostrar ventana flotante, solo log
+        else if(data.type==='gift'){ 
+          addChatLog(`🎁 @${data.username} (${data.nickname}) envió ${data.giftName} x${data.giftCount} al live`);
+          // Actualizar donadores en segundo plano
+          if(!currentDonorsMap.has(data.username)){
+            currentDonorsMap.set(data.username, {username: data.username, nickname: data.nickname, avatar: data.avatar});
+            updateDonorList(Array.from(currentDonorsMap.values()));
+          }
+        }
       }catch(e){ console.error(e); }
     };
     ws.onclose=()=>{ addChatLog('🔌 Desconectado, reconectando...',true); setTimeout(initWebSocket,3000); };
@@ -297,10 +311,10 @@
 
   document.getElementById('connectTikTokBtn').onclick=async()=>{
     const username=document.getElementById('tiktokUsername').value.trim();
-    if(!username){ alert('Ingresa un username'); return; }
+    if(!username){ alert('Ingresa un username de TikTok en vivo'); return; }
     const btn=document.getElementById('connectTikTokBtn');
     btn.textContent='Conectando...'; btn.disabled=true;
-    try{ const res=await fetch(`/connect/${username}`), data=await res.json(); if(data.status==='connected') addChatLog(`✅ Conectado a @${username}`); else addChatLog(`❌ Error: ${data.error}`,true); }
+    try{ const res=await fetch(`/connect/${username}`), data=await res.json(); if(data.status==='connected') addChatLog(`✅ Conectado a @${username} (reconexión automática activa)`); else addChatLog(`❌ Error: ${data.error}`,true); }
     catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
     finally{ btn.textContent='Conectar Live'; btn.disabled=false; }
   };
@@ -308,7 +322,7 @@
   document.getElementById('disconnectTikTokBtn').onclick=async()=>{
     const btn=document.getElementById('disconnectTikTokBtn');
     btn.textContent='Desconectando...'; btn.disabled=true;
-    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado'); currentDonorsMap.clear(); updateDonorList([]); }
+    try{ await fetch('/disconnect'); addChatLog('✅ Desconectado manualmente'); currentDonorsMap.clear(); updateDonorList([]); }
     catch(e){ addChatLog(`❌ Error: ${e.message}`,true); }
     finally{ btn.textContent='Desconectar'; btn.disabled=false; }
   };
@@ -336,4 +350,4 @@
   updateBalanceUI();
 </script>
 </body>
-</html>
+                                                                                                                                                                                                             </html>
