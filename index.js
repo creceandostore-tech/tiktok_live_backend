@@ -18,6 +18,7 @@ let viewers = new Map();
 let currentUsername = null;
 let isManualDisconnect = false;
 let reconnectTimer = null;
+let lastGiftTime = Date.now();
 
 const MAX_VIEWERS = 5000;
 const RECONNECT_DELAY = 3000;
@@ -52,6 +53,28 @@ async function fetchAvatarFromTikTool(uniqueId) {
     }
 }
 
+async function fetchUserInfo(uniqueId) {
+    try {
+        const response = await fetch(`https://api.tik.tools/user/${uniqueId}`, {
+            headers: {
+                'Authorization': `Bearer ${TIKTOOL_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return {
+                nickname: data?.user?.nickname || data?.nickname || uniqueId,
+                avatar: data?.user?.avatar || data?.avatar || null
+            };
+        }
+        return { nickname: uniqueId, avatar: null };
+    } catch (error) {
+        return { nickname: uniqueId, avatar: null };
+    }
+}
+
 app.get('/search/:username', async (req, res) => {
     try {
         const username = req.params.username.replace(/^@/, '').trim();
@@ -59,18 +82,22 @@ app.get('/search/:username', async (req, res) => {
         
         const viewer = viewers.get(username);
         let avatar = viewer?.avatar || null;
+        let nickname = viewer?.nickname || username;
         
         if (!avatar) {
-            avatar = await fetchAvatarFromTikTool(username);
+            const userInfo = await fetchUserInfo(username);
+            avatar = userInfo.avatar;
+            nickname = userInfo.nickname;
             if (avatar && viewer) {
                 viewer.avatar = avatar;
+                viewer.nickname = nickname;
                 broadcastViewers();
             }
         }
         
         res.json({
             username: username,
-            nickname: viewer?.nickname || username,
+            nickname: nickname,
             avatar: avatar,
             found: !!viewer || !!avatar
         });
@@ -91,13 +118,18 @@ function getAvatarUrl(user) {
 }
 
 function broadcastViewers() {
-    const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
-        username: v.username,
-        nickname: v.nickname,
-        avatar: v.avatar
-    }));
+    // Solo enviar donadores (los que tienen prioridad o enviaron regalos)
+    const donorList = Array.from(viewers.values())
+        .filter(v => v.isDonor === true)
+        .slice(0, 500)
+        .map(v => ({
+            username: v.username,
+            nickname: v.nickname,
+            avatar: v.avatar,
+            giftName: v.lastGift || null
+        }));
     
-    const message = JSON.stringify({ type: 'viewers', data: viewerList, total: viewers.size });
+    const message = JSON.stringify({ type: 'viewers', data: donorList, total: donorList.length, allViewers: viewers.size });
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             try { client.send(message); } catch (e) {}
@@ -105,14 +137,16 @@ function broadcastViewers() {
     });
 }
 
-function broadcastGift(username, giftName, avatar) {
+function broadcastGift(username, nickname, giftName, avatar, giftCount = 1) {
     const message = JSON.stringify({ 
         type: 'gift', 
-        username: username, 
+        username: username,
+        nickname: nickname,
         giftName: giftName,
+        giftCount: giftCount,
         avatar: avatar
     });
-    console.log(`🎁 Enviando notificación de regalo: @${username} - ${giftName}`);
+    console.log(`🎁 Enviando notificación: @${username} (${nickname}) - ${giftName} x${giftCount}`);
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             try { client.send(message); } catch (e) {}
@@ -190,6 +224,27 @@ async function connectToTikTok(username) {
     }
 }
 
+// Limpiar espectadores que no están en el live cada 1 minuto
+setInterval(() => {
+    if (!tiktokConnection || !tiktokConnection.isConnected) return;
+    
+    const now = Date.now();
+    let removedCount = 0;
+    
+    viewers.forEach((viewer, uniqueId) => {
+        // Si el usuario no ha tenido actividad en más de 70 segundos, eliminarlo
+        if (now - viewer.lastSeen > 70000) {
+            viewers.delete(uniqueId);
+            removedCount++;
+        }
+    });
+    
+    if (removedCount > 0) {
+        console.log(`🧹 Limpiados ${removedCount} espectadores inactivos. Donadores restantes: ${viewers.size}`);
+        broadcastViewers();
+    }
+}, 60000);
+
 function setupEventHandlers(username) {
     if (!tiktokConnection) return;
     
@@ -207,58 +262,73 @@ function setupEventHandlers(username) {
         }, 2000);
     }
     
-    function addViewer(userData) {
+    function addOrUpdateViewer(userData, isDonor = false, giftName = null) {
         try {
             const uniqueId = userData?.uniqueId;
             if (!uniqueId || uniqueId === username) return;
-            if (viewers.size >= MAX_VIEWERS && !viewers.has(uniqueId)) return;
             
-            if (!viewers.has(uniqueId)) {
+            const now = Date.now();
+            const existing = viewers.get(uniqueId);
+            
+            if (!existing) {
                 const avatar = getAvatarUrl(userData);
                 viewers.set(uniqueId, {
                     username: uniqueId,
                     nickname: userData?.nickname || userData?.displayId || uniqueId,
-                    avatar: avatar || null
+                    avatar: avatar || null,
+                    isDonor: isDonor,
+                    lastGift: giftName,
+                    lastSeen: now
                 });
-                console.log(`👥 +${uniqueId} (${viewers.size})`);
+                console.log(`👥 Nuevo donador: @${uniqueId} (${userData?.nickname || uniqueId})`);
                 pendingUpdate = true;
                 scheduleBroadcast();
+            } else if (isDonor) {
+                existing.isDonor = true;
+                existing.lastGift = giftName;
+                existing.lastSeen = now;
+                if (!existing.nickname || existing.nickname === existing.username) {
+                    existing.nickname = userData?.nickname || existing.nickname;
+                }
+                pendingUpdate = true;
+                scheduleBroadcast();
+            } else {
+                existing.lastSeen = now;
             }
         } catch (e) {}
     }
     
-    function removeViewer(uniqueId) {
-        if (uniqueId && viewers.has(uniqueId)) {
-            viewers.delete(uniqueId);
-            console.log(`🚪 -${uniqueId} (${viewers.size})`);
-            pendingUpdate = true;
-            scheduleBroadcast();
+    async function updateDonorInfo(uniqueId, userData, giftName, giftCount) {
+        const avatar = getAvatarUrl(userData);
+        let nickname = userData?.nickname || userData?.displayId || uniqueId;
+        
+        // Si no tiene avatar, buscar en API
+        let finalAvatar = avatar;
+        if (!finalAvatar) {
+            finalAvatar = await fetchAvatarFromTikTool(uniqueId);
         }
-    }
-    
-    async function updateAvatarFromGift(uniqueId, userData) {
-        if (uniqueId && viewers.has(uniqueId)) {
-            const viewer = viewers.get(uniqueId);
-            if (!viewer.avatar) {
-                const avatar = getAvatarUrl(userData);
-                if (avatar) {
-                    viewer.avatar = avatar;
-                    pendingUpdate = true;
-                    scheduleBroadcast();
-                    return avatar;
-                } else {
-                    const apiAvatar = await fetchAvatarFromTikTool(uniqueId);
-                    if (apiAvatar) {
-                        viewer.avatar = apiAvatar;
-                        pendingUpdate = true;
-                        scheduleBroadcast();
-                        return apiAvatar;
-                    }
-                }
-            }
-            return viewer.avatar;
+        
+        // Buscar nombre real
+        if (nickname === uniqueId) {
+            const userInfo = await fetchUserInfo(uniqueId);
+            nickname = userInfo.nickname;
+            if (!finalAvatar && userInfo.avatar) finalAvatar = userInfo.avatar;
         }
-        return null;
+        
+        viewers.set(uniqueId, {
+            username: uniqueId,
+            nickname: nickname,
+            avatar: finalAvatar,
+            isDonor: true,
+            lastGift: `${giftName} x${giftCount}`,
+            lastSeen: Date.now()
+        });
+        
+        // Enviar notificación al frontend
+        broadcastGift(uniqueId, nickname, giftName, finalAvatar, giftCount);
+        
+        pendingUpdate = true;
+        scheduleBroadcast();
     }
     
     tiktokConnection.on(WebcastEvent.CONNECTED, () => {
@@ -279,43 +349,32 @@ function setupEventHandlers(username) {
     
     tiktokConnection.on(WebcastEvent.ROOM_USER_SEGMENT, (data) => {
         const count = data?.viewerCount || viewers.size;
-        console.log(`📊 Espectadores: ${count}`);
+        console.log(`📊 Espectadores en live: ${count} | Donadores registrados: ${viewers.size}`);
         broadcastStatus(true, `Live: ${count} viewers`);
     });
     
-    tiktokConnection.on(WebcastEvent.MEMBER, (data) => {
-        if (data?.user) addViewer(data.user);
-    });
-    
-    tiktokConnection.on(WebcastEvent.MEMBER_JOIN, (data) => {
-        if (data?.user) addViewer(data.user);
-    });
-    
-    tiktokConnection.on(WebcastEvent.MEMBER_LEAVE, (data) => {
-        if (data?.user?.uniqueId) removeViewer(data.user.uniqueId);
-    });
-    
-    // EVENTO DE REGALO - Enviar notificación al frontend
+    // EVENTO DE REGALO - Solo donadores se guardan
     tiktokConnection.on(WebcastEvent.GIFT, async (data) => {
         if (data?.user) {
             const userId = data.user.uniqueId;
             const giftName = data.giftName || 'Gift';
             const repeatCount = data.repeatCount || 1;
-            console.log(`🎁 REGALO de @${userId}: ${giftName} x${repeatCount}`);
+            const diamondCount = data.diamondCount || 0;
+            console.log(`🎁 REGALO de @${userId}: ${giftName} x${repeatCount} (${diamondCount} diamantes)`);
             
-            // Agregar a la lista de espectadores
-            addViewer(data.user);
-            
-            // Obtener avatar para la notificación
-            const avatar = await updateAvatarFromGift(userId, data.user);
-            
-            // Enviar notificación al frontend
-            broadcastGift(userId, `${giftName} x${repeatCount}`, avatar);
+            // Actualizar información del donador
+            await updateDonorInfo(userId, data.user, giftName, repeatCount);
         }
     });
     
     tiktokConnection.on(WebcastEvent.CHAT, (data) => {
-        if (data?.user) addViewer(data.user);
+        // Solo actualizar lastSeen, no agregar como donador
+        if (data?.user?.uniqueId) {
+            const existing = viewers.get(data.user.uniqueId);
+            if (existing) {
+                existing.lastSeen = Date.now();
+            }
+        }
     });
 }
 
@@ -330,12 +389,17 @@ wss.on('connection', (ws) => {
         viewerCount: viewers.size
     }));
     
-    const viewerList = Array.from(viewers.values()).slice(0, 500).map(v => ({
-        username: v.username,
-        nickname: v.nickname,
-        avatar: v.avatar
-    }));
-    ws.send(JSON.stringify({ type: 'viewers', data: viewerList, total: viewers.size }));
+    // Solo enviar donadores
+    const donorList = Array.from(viewers.values())
+        .filter(v => v.isDonor === true)
+        .slice(0, 500)
+        .map(v => ({
+            username: v.username,
+            nickname: v.nickname,
+            avatar: v.avatar,
+            giftName: v.lastGift || null
+        }));
+    ws.send(JSON.stringify({ type: 'viewers', data: donorList, total: donorList.length, allViewers: viewers.size }));
     
     ws.on('close', () => {
         console.log('📱 Cliente desconectado');
@@ -373,11 +437,12 @@ app.get('/disconnect', async (req, res) => {
 });
 
 app.get('/status', (req, res) => {
+    const donors = Array.from(viewers.values()).filter(v => v.isDonor === true).length;
     res.json({ 
         connected: tiktokConnection?.isConnected || false,
         username: currentUsername,
-        viewers: viewers.size,
-        maxViewers: MAX_VIEWERS
+        donors: donors,
+        totalViewers: viewers.size
     });
 });
 
@@ -387,6 +452,6 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`🚀 Servidor en puerto ${PORT}`);
-    console.log(`⚙️ Máximo: ${MAX_VIEWERS} espectadores`);
-    console.log(`🔍 Endpoint /search/:username disponible`);
+    console.log(`⚙️ Modo: Solo donadores visibles`);
+    console.log(`🧹 Limpieza automática cada 60 segundos`);
 });
