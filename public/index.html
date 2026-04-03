@@ -990,7 +990,7 @@
   let pendingTransaction = null;
 
   const cardLast4 = "6789";
-  // NUEVOS PACKS ACTUALIZADOS
+  // PACKS ACTUALIZADOS
   const packs = [
     {coins: 30, usd: 0.32},
     {coins: 350, usd: 3.65},
@@ -1315,14 +1315,18 @@
     const btn = document.getElementById('disconnectTikTokBtn');
     btn.textContent = 'Desconectando...';
     btn.disabled = true;
-    addConsoleLog(`🔌 Desconectando del live...`, 'info');
+    addConsoleLog(`🔌 Desconectando del live y limpiando datos...`, 'info');
     try {
-      await fetch('/disconnect');
-      priorityUsers.clear();
-      currentViewersMap.clear();
-      updateSuggestions();
-      updateUserViews();
-      addConsoleLog(`✅ Desconectado correctamente`, 'success');
+      const res = await fetch('/disconnect');
+      const data = await res.json();
+      if (data.reset) {
+        addConsoleLog(`✅ Desconectado correctamente - Datos limpiados para nuevo live`, 'success');
+        currentViewersMap.clear();
+        priorityUsers.clear();
+        updateSuggestions();
+        updateUserViews();
+        addConsoleLog(`🧹 Lista de espectadores y donadores reiniciada`, 'success');
+      }
     } catch(e) { addConsoleLog(`❌ Error: ${e.message}`, 'error'); }
     finally { btn.textContent = 'Desconectar'; btn.disabled = false; }
   };
@@ -1379,4 +1383,4 @@
   addConsoleLog('🚀 Aplicación iniciada - Esperando eventos en tiempo real', 'success');
 </script>
 </body>
-  </html>
+</html>
