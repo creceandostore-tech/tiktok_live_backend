@@ -25,7 +25,7 @@ let lastHeartbeat = Date.now();
 let reconnectInProgress = false;
 
 const MAX_VIEWERS = 3000;
-const MAX_RECONNECT_ATTEMPTS = Infinity; // Intentos infinitos
+const MAX_RECONNECT_ATTEMPTS = Infinity;
 const RECONNECT_DELAYS = [1000, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000, 60000];
 let currentDelayIndex = 0;
 
@@ -33,7 +33,6 @@ const avatarCache = new Map();
 const donorCache = new Map();
 const TIKTOOL_API_KEY = 'tk_19ccc744ea1023f55fc03ede8dd300da8519a313022ab447';
 
-// Función para enviar logs a todos los clientes
 function broadcastLog(message, type = 'info') {
     const logMsg = JSON.stringify({
         type: 'console_log',
@@ -49,11 +48,9 @@ function broadcastLog(message, type = 'info') {
     console.log(message);
 }
 
-// Múltiples métodos para obtener avatar
 async function fetchAvatarFromTikTool(uniqueId) {
     if (avatarCache.has(uniqueId)) return avatarCache.get(uniqueId);
     
-    // Método 1: TikTools API
     try {
         const response = await fetch(`https://api.tik.tools/user/${uniqueId}`, {
             headers: {
@@ -73,7 +70,6 @@ async function fetchAvatarFromTikTool(uniqueId) {
         }
     } catch (error) {}
     
-    // Método 2: API directa de TikTok
     try {
         const response = await fetch(`https://www.tiktok.com/@${uniqueId}`, {
             headers: {
@@ -186,7 +182,6 @@ function broadcastStatus(connected, message = '') {
     });
 }
 
-// MONITOR DE CONEXIÓN - Detecta desconexiones silenciosas
 function startConnectionMonitor() {
     if (connectionMonitor) clearInterval(connectionMonitor);
     
@@ -195,7 +190,6 @@ function startConnectionMonitor() {
             const isConnected = tiktokConnection.isConnected;
             const timeSinceLastHeartbeat = Date.now() - lastHeartbeat;
             
-            // Si pasaron más de 30 segundos sin heartbeat y no está reconectando
             if (!isConnected || timeSinceLastHeartbeat > 30000) {
                 if (!reconnectInProgress && !isReconnecting) {
                     broadcastLog(`⚠️ Monitor detectó posible desconexión. Reconectando...`, 'warning');
@@ -206,7 +200,6 @@ function startConnectionMonitor() {
     }, 15000);
 }
 
-// FUERZA RECONEXIÓN - Método agresivo
 async function forceReconnect() {
     if (reconnectInProgress || isManualDisconnect) return;
     
@@ -238,7 +231,6 @@ async function scheduleReconnect() {
     if (isManualDisconnect || reconnectInProgress) return;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     
-    // Resetear índice si pasó mucho tiempo
     if (reconnectAttempts > 20 && reconnectAttempts % 10 === 0) {
         currentDelayIndex = Math.max(0, currentDelayIndex - 1);
     }
@@ -246,7 +238,6 @@ async function scheduleReconnect() {
     const delay = RECONNECT_DELAYS[Math.min(currentDelayIndex, RECONNECT_DELAYS.length - 1)];
     reconnectAttempts++;
     
-    // Aumentar índice progresivamente hasta un máximo
     if (currentDelayIndex < RECONNECT_DELAYS.length - 1 && reconnectAttempts % 3 === 0) {
         currentDelayIndex++;
     }
@@ -269,7 +260,6 @@ async function connectToTikTok(username) {
     
     if (reconnectTimer) clearTimeout(reconnectTimer);
     
-    // Guardar datos actuales antes de desconectar
     const savedViewers = new Map(viewers);
     const savedAvatarCache = new Map(avatarCache);
     const savedDonorCache = new Map(donorCache);
@@ -286,7 +276,6 @@ async function connectToTikTok(username) {
     broadcastLog(`🔌 Conectando a @${username}...`, 'info');
     broadcastStatus(false, `Conectando a @${username}...`);
     
-    // Múltiples intentos de conexión con diferentes configuraciones
     const connectionConfigs = [
         { enableExtendedGiftInfo: true, requestPollingIntervalMs: 3000, websocketTimeout: 120000 },
         { enableExtendedGiftInfo: true, requestPollingIntervalMs: 5000, websocketTimeout: 180000 },
@@ -314,7 +303,6 @@ async function connectToTikTok(username) {
             setupEventHandlers(username);
             await tiktokConnection.connect();
             
-            // Restaurar datos guardados
             viewers.clear();
             savedViewers.forEach((value, key) => {
                 viewers.set(key, value);
@@ -327,7 +315,6 @@ async function connectToTikTok(username) {
             broadcastLog(`📊 Datos restaurados: ${viewers.size} espectadores`, 'success');
             broadcastStatus(true, `Conectado a @${username} - ${viewers.size} espectadores`);
             
-            // Broadcast de espectadores restaurados
             broadcastViewers();
             
             return true;
@@ -400,7 +387,6 @@ function setupEventHandlers(username) {
         }
     }
     
-    // Heartbeat para monitor
     const heartbeatInterval = setInterval(() => {
         lastHeartbeat = Date.now();
     }, 5000);
@@ -493,12 +479,23 @@ function setupEventHandlers(username) {
         lastHeartbeat = Date.now();
     });
     
-    // Limpiar heartbeat al desconectar
     const originalDisconnect = tiktokConnection.disconnect;
     tiktokConnection.disconnect = async function() {
         clearInterval(heartbeatInterval);
         return originalDisconnect.apply(this, arguments);
     };
+}
+
+// RESET COMPLETO - Limpia espectadores, donadores y caché de avatares
+function fullReset() {
+    broadcastLog(`🧹 REALIZANDO RESET COMPLETO...`, 'warning');
+    viewers.clear();
+    donorCache.clear();
+    avatarCache.clear();
+    broadcastLog(`✅ Espectadores eliminados: 0`, 'success');
+    broadcastLog(`✅ Donadores eliminados: 0`, 'success');
+    broadcastLog(`✅ Caché de avatares eliminada`, 'success');
+    broadcastViewers();
 }
 
 app.get('/search/:username', async (req, res) => {
@@ -574,26 +571,44 @@ app.get('/connect/:username', async (req, res) => {
 
 app.get('/disconnect', async (req, res) => {
     try {
-        broadcastLog(`🔌 Desconexión manual solicitada`, 'warning');
+        broadcastLog(`🔌 DESCONEXIÓN MANUAL - Reseteando todos los datos...`, 'warning');
         isManualDisconnect = true;
         reconnectInProgress = false;
+        
         if (reconnectTimer) clearTimeout(reconnectTimer);
         if (connectionMonitor) clearInterval(connectionMonitor);
+        
         if (tiktokConnection) {
             tiktokConnection.removeAllListeners();
             await tiktokConnection.disconnect();
         }
+        
         tiktokConnection = null;
         currentUsername = null;
         reconnectAttempts = 0;
         currentDelayIndex = 0;
-        broadcastViewers();
-        broadcastStatus(false, 'Desconectado manualmente');
-        broadcastLog(`✅ Desconectado correctamente`, 'success');
-        res.json({ status: 'disconnected' });
+        
+        // RESET COMPLETO: Limpia espectadores, donadores y caché
+        fullReset();
+        
+        broadcastStatus(false, 'Desconectado manualmente - Live finalizado');
+        broadcastLog(`✅ Desconectado y datos limpiados correctamente`, 'success');
+        broadcastLog(`💡 Ya puedes conectar un nuevo live`, 'info');
+        
+        res.json({ status: 'disconnected', reset: true });
     } catch (err) {
         broadcastLog(`❌ Error en desconexión: ${err.message}`, 'error');
         res.json({ status: 'error', error: err.message });
+    }
+});
+
+app.get('/reset', (req, res) => {
+    if (!isManualDisconnect && tiktokConnection?.isConnected) {
+        broadcastLog(`⚠️ No se puede resetear mientras hay un live activo. Desconecta primero.`, 'warning');
+        res.json({ status: 'error', message: 'Desconecta el live primero' });
+    } else {
+        fullReset();
+        res.json({ status: 'reset', message: 'Todos los datos han sido limpiados' });
     }
 });
 
@@ -609,23 +624,29 @@ app.get('/status', (req, res) => {
 });
 
 app.get('/force-reconnect', async (req, res) => {
-    broadcastLog(`🔄 Forzando reconexión manual...`, 'warning');
-    await forceReconnect();
-    res.json({ status: 'reconnecting', username: currentUsername });
+    if (isManualDisconnect) {
+        broadcastLog(`⚠️ No se puede reconectar porque hay una desconexión manual activa`, 'warning');
+        res.json({ status: 'error', message: 'Desconexión manual activa' });
+    } else {
+        broadcastLog(`🔄 Forzando reconexión manual...`, 'warning');
+        await forceReconnect();
+        res.json({ status: 'reconnecting', username: currentUsername });
+    }
 });
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Iniciar servidor
 server.listen(PORT, () => {
     console.log(`\n🚀 ========== SERVIDOR INICIADO ==========`);
     console.log(`📡 Puerto: ${PORT}`);
     console.log(`👥 Máximo espectadores: ${MAX_VIEWERS}`);
     console.log(`🔄 Reconexión automática: ACTIVADA (intentos infinitos)`);
+    console.log(`🧹 Al desconectar: RESET COMPLETO de datos`);
     console.log(`📊 Endpoint /search/:username disponible`);
     console.log(`📊 Endpoint /donors disponible`);
     console.log(`🔄 Endpoint /force-reconnect disponible`);
+    console.log(`🧹 Endpoint /reset disponible`);
     console.log(`========================================\n`);
 });
